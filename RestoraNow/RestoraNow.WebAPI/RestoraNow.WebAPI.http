@@ -1,0 +1,6 @@
+@RestoraNow.WebAPI_HostAddress = http://localhost:5294
+
+GET {{RestoraNow.WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
