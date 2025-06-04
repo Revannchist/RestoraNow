@@ -8,6 +8,31 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/Dotnet.gitignore
 
 # Build results
+
+# Visual Studio
+.vs/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+# Visual Studio Code
+.vscode/
+# Visual Studio cache files
+*.vsidx
+*.vspscc
+*.vmps
+*.suo
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.tlog
+*.vshost.*
+*.dotCover
+
+
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
