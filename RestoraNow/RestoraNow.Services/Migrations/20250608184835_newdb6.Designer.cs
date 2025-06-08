@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RestoraNow.Services.Data;
 
@@ -11,9 +12,11 @@ using RestoraNow.Services.Data;
 namespace RestoraNow.Services.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250608184835_newdb6")]
+    partial class newdb6
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,69 +24,6 @@ namespace RestoraNow.Services.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("RestoraNow.Services.Entities.Address", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("City")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Country")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Street")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ZipCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Address");
-                });
-
-            modelBuilder.Entity("RestoraNow.Services.Entities.Favorite", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("MenuItemId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MenuItemId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Favorite");
-                });
 
             modelBuilder.Entity("RestoraNow.Services.Entities.Image", b =>
                 {
@@ -208,7 +148,7 @@ namespace RestoraNow.Services.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Order");
                 });
 
             modelBuilder.Entity("RestoraNow.Services.Entities.OrderItem", b =>
@@ -238,7 +178,7 @@ namespace RestoraNow.Services.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("OrderItems");
+                    b.ToTable("OrderItem");
                 });
 
             modelBuilder.Entity("RestoraNow.Services.Entities.Payment", b =>
@@ -270,7 +210,7 @@ namespace RestoraNow.Services.Migrations
                     b.HasIndex("OrderId")
                         .IsUnique();
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payment");
                 });
 
             modelBuilder.Entity("RestoraNow.Services.Entities.Reservation", b =>
@@ -514,36 +454,6 @@ namespace RestoraNow.Services.Migrations
                     b.ToTable("UserRoles");
                 });
 
-            modelBuilder.Entity("RestoraNow.Services.Entities.Address", b =>
-                {
-                    b.HasOne("RestoraNow.Services.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("RestoraNow.Services.Entities.Favorite", b =>
-                {
-                    b.HasOne("RestoraNow.Services.Entities.MenuItem", "MenuItem")
-                        .WithMany()
-                        .HasForeignKey("MenuItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RestoraNow.Services.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("MenuItem");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("RestoraNow.Services.Entities.Image", b =>
                 {
                     b.HasOne("RestoraNow.Services.Entities.MenuItem", "MenuItem")
@@ -581,7 +491,7 @@ namespace RestoraNow.Services.Migrations
                         .HasForeignKey("ReservationId");
 
                     b.HasOne("RestoraNow.Services.Entities.User", "User")
-                        .WithMany("Orders")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -594,7 +504,7 @@ namespace RestoraNow.Services.Migrations
             modelBuilder.Entity("RestoraNow.Services.Entities.OrderItem", b =>
                 {
                     b.HasOne("RestoraNow.Services.Entities.MenuItem", "MenuItem")
-                        .WithMany("OrderItems")
+                        .WithMany()
                         .HasForeignKey("MenuItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -697,8 +607,6 @@ namespace RestoraNow.Services.Migrations
             modelBuilder.Entity("RestoraNow.Services.Entities.MenuItem", b =>
                 {
                     b.Navigation("Images");
-
-                    b.Navigation("OrderItems");
                 });
 
             modelBuilder.Entity("RestoraNow.Services.Entities.Order", b =>
@@ -730,8 +638,6 @@ namespace RestoraNow.Services.Migrations
 
             modelBuilder.Entity("RestoraNow.Services.Entities.User", b =>
                 {
-                    b.Navigation("Orders");
-
                     b.Navigation("Reservations");
 
                     b.Navigation("UserRoles");

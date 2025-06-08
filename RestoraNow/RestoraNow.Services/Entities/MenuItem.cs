@@ -22,11 +22,6 @@ namespace RestoraNow.Services.Entities
         [MaxLength(500)]
         public string? Description { get; set; }
 
-        //[Required]
-        //[Range(0, double.MaxValue)]
-        //[Precision(18, 2)]
-        //public decimal Price { get; set; }
-
         [Required]
         [Column(TypeName = "decimal(10,2)")]
         public decimal Price { get; set; }
@@ -42,6 +37,8 @@ namespace RestoraNow.Services.Entities
         public virtual MenuCategory Category { get; set; }
 
         public ICollection<Image> Images { get; set; } = new List<Image>();
+
+        public ICollection<OrderItem> OrderItems { get; set; }
     }
 
 }

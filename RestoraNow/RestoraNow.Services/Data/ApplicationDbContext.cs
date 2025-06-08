@@ -20,10 +20,15 @@ namespace RestoraNow.Services.Data
         public DbSet<Reservation> Reservations { get; set; }
         public DbSet<Restaurant> Restaurants { get; set; }
         public DbSet<Image> Images { get; set; }
-        //public DbSet<Menu> Menu { get; set; }
         public DbSet<MenuItem> MenuItem { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<MenuCategory> Categories { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+        public DbSet<Address> Address { get; set; }
+        public DbSet<Favorite> Favorite { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -42,6 +47,29 @@ namespace RestoraNow.Services.Data
                 .HasOne(ur => ur.Role)
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(ur => ur.RoleId);
+
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.Payment)
+                .WithOne(p => p.Order)
+                .HasForeignKey<Payment>(p => p.OrderId);
+
+            //--
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.User)
+                .WithMany(u => u.Orders)
+                .HasForeignKey(o => o.UserId);
+
+            //--
+            modelBuilder.Entity<OrderItem>()
+                .HasOne(oi => oi.Order)
+                .WithMany(o => o.OrderItems)
+                .HasForeignKey(oi => oi.OrderId);
+
+            modelBuilder.Entity<OrderItem>()
+                .HasOne(oi => oi.MenuItem)
+                .WithMany(mi => mi.OrderItems)
+                .HasForeignKey(oi => oi.MenuItemId);
+
         }
     }
 }

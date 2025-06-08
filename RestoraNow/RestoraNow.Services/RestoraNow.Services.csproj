@@ -26,8 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Interfaces\" />
-    <Folder Include="Implementations\" />
     <Folder Include="Mappings\" />
     <Folder Include="Migrations\" />
   </ItemGroup>
