@@ -5,6 +5,7 @@ using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Entities;
 using RestoraNow.Services.Interfaces;
+using MapsterMapper;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,13 +17,15 @@ namespace RestoraNow.Services.Implementations
     public class AddressService : IAddressService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMapper _mapper;
 
-        public AddressService(ApplicationDbContext context)
+        public AddressService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
-        public async Task<IEnumerable<AddressResponse>> GetAsync(AddressSearchModel search)
+        public async Task<IEnumerable<AddressResponse>> GetAsync(AddressSearchModel search, CancellationToken cancellationToken = default)
         {
             // Base query
             IQueryable<Address> query = _context.Address.AsNoTracking();
@@ -30,85 +33,53 @@ namespace RestoraNow.Services.Implementations
             // Filtering (example)
             if (search.UserId.HasValue)
                 query = query.Where(a => a.UserId == search.UserId.Value);
-
             if (!string.IsNullOrWhiteSpace(search.City))
                 query = query.Where(a => a.City.Contains(search.City));
 
-            var addresses = await query.ToListAsync();
-
-            return addresses.Select(MapToResponse);
+            var addresses = await query.ToListAsync(cancellationToken);
+            return _mapper.Map<IEnumerable<AddressResponse>>(addresses);
         }
 
-        public async Task<AddressResponse?> GetByIdAsync(int id)
+        public async Task<AddressResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             var address = await _context.Address
                 .AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Id == id);
+                .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
-            return address == null ? null : MapToResponse(address);
+            return address == null ? null : _mapper.Map<AddressResponse>(address);
         }
 
-        public async Task<AddressResponse> InsertAsync(AddressRequest request)
+        public async Task<AddressResponse> InsertAsync(AddressRequest request, CancellationToken cancellationToken = default)
         {
-            var address = new Address
-            {
-                UserId = request.UserId,
-                Street = request.Street,
-                City = request.City,
-                ZipCode = request.ZipCode,
-                Country = request.Country,
-                IsDefault = request.IsDefault
-            };
+            var address = _mapper.Map<Address>(request);
 
             _context.Address.Add(address);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(cancellationToken);
 
-            return MapToResponse(address);
+            return _mapper.Map<AddressResponse>(address);
         }
 
-        public async Task<AddressResponse?> UpdateAsync(int id, AddressRequest request)
+        public async Task<AddressResponse?> UpdateAsync(int id, AddressRequest request, CancellationToken cancellationToken = default)
         {
-            var address = await _context.Address.FindAsync(id);
-
+            var address = await _context.Address.FindAsync(new object[] { id }, cancellationToken);
             if (address == null)
                 return null;
 
-            address.UserId = request.UserId;
-            address.Street = request.Street;
-            address.City = request.City;
-            address.ZipCode = request.ZipCode;
-            address.Country = request.Country;
-            address.IsDefault = request.IsDefault;
+            _mapper.Map(request, address);
+            await _context.SaveChangesAsync(cancellationToken);
 
-            await _context.SaveChangesAsync();
-
-            return MapToResponse(address);
+            return _mapper.Map<AddressResponse>(address);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
         {
-            var address = await _context.Address.FindAsync(id);
-
+            var address = await _context.Address.FindAsync(new object[] { id }, cancellationToken);
             if (address == null)
                 return false;
 
             _context.Address.Remove(address);
-            await _context.SaveChangesAsync();
-
+            await _context.SaveChangesAsync(cancellationToken);
             return true;
         }
-
-        // Helper: Map entity to response DTO
-        private AddressResponse MapToResponse(Address address) => new AddressResponse
-        {
-            Id = address.Id,
-            UserId = address.UserId,
-            Street = address.Street,
-            City = address.City,
-            ZipCode = address.ZipCode,
-            Country = address.Country,
-            IsDefault = address.IsDefault
-        };
     }
-
 }

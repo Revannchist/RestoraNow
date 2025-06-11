@@ -1,5 +1,8 @@
+using Mapster;
 using Microsoft.EntityFrameworkCore;
 using RestoraNow.Services.Data;
+using RestoraNow.Services.Implementations;
+using RestoraNow.Services.Interfaces;
 
 namespace RestoraNow.WebAPI
 {
@@ -9,12 +12,25 @@ namespace RestoraNow.WebAPI
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            //Services
+            builder.Services.AddTransient<IAddressService, AddressService>();
+            builder.Services.AddTransient<IFavoriteService, FavoriteService>();
+            builder.Services.AddTransient<IImageService, ImageService>();
+            builder.Services.AddTransient<IMenuCategoryService, MenuCategoryService>();
+            builder.Services.AddTransient<IMenuItemService, MenuItemService>();
+            builder.Services.AddTransient<IOrderService, OrderService>();
+            builder.Services.AddTransient<IOrderItemService, OrderItemService>();
+            
+
+            //Mapster
+            builder.Services.AddMapster();
 
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+
+            //builder.Services.AddAutoMapper(typeof(AutoMapperProfile)); //Auto Mapper 
 
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));

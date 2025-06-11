@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using RestoraNow.Model.Enums;
 
 namespace RestoraNow.Services.Entities
 {
@@ -26,15 +27,6 @@ namespace RestoraNow.Services.Entities
         public ICollection<OrderItem> OrderItems { get; set; }
 
         public Payment Payment { get; set; }
-    }
-
-    public enum OrderStatus
-    {
-        Pending,
-        Preparing,
-        Ready,
-        Completed,
-        Cancelled
     }
 
 }
