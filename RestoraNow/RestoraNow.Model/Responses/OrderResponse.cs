@@ -14,10 +14,4 @@ namespace RestoraNow.Model.Responses
         public List<OrderItemResponse> OrderItems { get; set; }
     }
 
-    //public class OrderItemResponse
-    //{
-    //    public int MenuItemId { get; set; }
-    //    public string MenuItemName { get; set; }
-    //    public decimal MenuItemPrice { get; set; }
-    //}
 }

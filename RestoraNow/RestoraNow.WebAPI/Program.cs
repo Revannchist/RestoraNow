@@ -1,8 +1,10 @@
 using Mapster;
+using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Implementations;
 using RestoraNow.Services.Interfaces;
+using System.Reflection;
 
 namespace RestoraNow.WebAPI
 {
@@ -24,6 +26,9 @@ namespace RestoraNow.WebAPI
 
             //Mapster
             builder.Services.AddMapster();
+
+            // Configure mappings
+            //TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
 
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

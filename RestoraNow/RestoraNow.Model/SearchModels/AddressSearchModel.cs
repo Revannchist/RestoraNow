@@ -1,18 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using RestoraNow.Model.Base;
 
 namespace RestoraNow.Model.SearchModels
 {
-    public class AddressSearchModel
+    public class AddressSearchModel : BaseSearchObject
     {
         public int? UserId { get; set; }
-
-        public string City { get; set; }
-
-        public string Country { get; set; }
-
-        public bool? IsDefault { get; set; }
+        public string? City { get; set; }
     }
 
 }
