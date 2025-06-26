@@ -1,15 +1,16 @@
-﻿using System;
+﻿using RestoraNow.Model.Base;
+using RestoraNow.Model.Enums;
+using System;
 using System.Collections.Generic;
 using System.Text;
-using RestoraNow.Model.Base;
-using RestoraNow.Model.Enums;
 
 namespace RestoraNow.Model.SearchModels
 {
-    public class OrderSearchModel : BaseSearchObject
+    public class ReservationSearchModel : BaseSearchObject
     {
         public int? UserId { get; set; }
-        public OrderStatus? Status { get; set; }
+        public int? TableId { get; set; }
+        public ReservationStatus? Status { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
     }

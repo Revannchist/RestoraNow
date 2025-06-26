@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Implementations;
 using RestoraNow.Services.Interfaces;
+using RestoraNow.Services.Interfaces.RestoraNow.Services.Interfaces;
 using System.Reflection;
 
 namespace RestoraNow.WebAPI
@@ -17,17 +18,18 @@ namespace RestoraNow.WebAPI
             //Services
             builder.Services.AddTransient<IAddressService, AddressService>();
             builder.Services.AddTransient<IFavoriteService, FavoriteService>();
-            builder.Services.AddTransient<IImageService, ImageService>();
             builder.Services.AddTransient<IMenuCategoryService, MenuCategoryService>();
             builder.Services.AddTransient<IMenuItemService, MenuItemService>();
             builder.Services.AddTransient<IOrderService, OrderService>();
             builder.Services.AddTransient<IOrderItemService, OrderItemService>();
-            
+            builder.Services.AddScoped<IPaymentService, PaymentService>();
+            builder.Services.AddScoped<IReservationService, ReservationService>();
+            builder.Services.AddScoped<IRestaurantService, RestaurantService>();
 
             //Mapster
             builder.Services.AddMapster();
+            RestoraNow.Services.Mappings.MappingConfig.RegisterMappings();
 
-            // Configure mappings
             //TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
 
             builder.Services.AddControllers();

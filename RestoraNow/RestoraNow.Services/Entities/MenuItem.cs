@@ -36,7 +36,7 @@ namespace RestoraNow.Services.Entities
         [ForeignKey("CategoryId")]
         public virtual MenuCategory Category { get; set; }
 
-        public ICollection<Image> Images { get; set; } = new List<Image>();
+        public ICollection<MenuItemImage> Images { get; set; } = new List<MenuItemImage>();
 
         public ICollection<OrderItem> OrderItems { get; set; }
     }

@@ -43,6 +43,8 @@ namespace RestoraNow.Services.Entities
         public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 
         public ICollection<Order> Orders { get; set; } = new List<Order>();
+
+        public ICollection<UserImage> Images { get; set; } = new List<UserImage>();
     }
 
 

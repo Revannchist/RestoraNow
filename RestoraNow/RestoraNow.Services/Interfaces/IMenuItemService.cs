@@ -1,20 +1,13 @@
 ﻿using RestoraNow.Model.Requests;
 using RestoraNow.Model.Responses;
 using RestoraNow.Model.SearchModels;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using RestoraNow.Services.BaseServices;
+using RestoraNow.Services.Interfaces.Base;
 
 namespace RestoraNow.Services.Interfaces
 {
     public interface IMenuItemService
+        : ICRUDService<MenuItemResponse, MenuItemSearchModel, MenuItemRequest>
     {
-        Task<IEnumerable<MenuItemResponse>> GetAsync(MenuItemSearchModel search, CancellationToken cancellationToken = default);
-        Task<MenuItemResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
-        Task<MenuItemResponse> InsertAsync(MenuItemRequest request, CancellationToken cancellationToken = default);
-        Task<MenuItemResponse?> UpdateAsync(int id, MenuItemRequest request, CancellationToken cancellationToken = default);
-        Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
     }
 }

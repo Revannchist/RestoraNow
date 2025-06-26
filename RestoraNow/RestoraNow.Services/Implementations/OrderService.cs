@@ -1,98 +1,83 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using MapsterMapper;
+using Microsoft.EntityFrameworkCore;
 using RestoraNow.Model.Requests;
 using RestoraNow.Model.Responses;
 using RestoraNow.Model.SearchModels;
+using RestoraNow.Services.BaseServices;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Entities;
 using RestoraNow.Services.Interfaces;
-using MapsterMapper;
 
 namespace RestoraNow.Services.Implementations
 {
-    public class OrderService : IOrderService
+    public class OrderService
+        : BaseCRUDService<OrderResponse, OrderSearchModel, Order, OrderRequest>,
+          IOrderService
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IMapper _mapper;
-
         public OrderService(ApplicationDbContext context, IMapper mapper)
+            : base(context, mapper)
         {
-            _context = context;
-            _mapper = mapper;
         }
 
-        public async Task<IEnumerable<OrderResponse>> GetAsync(OrderSearchModel search, CancellationToken cancellationToken = default)
-        {
-            IQueryable<Order> query = _context.Orders
-                .Include(o => o.OrderItems)
-                .Include(o => o.Payment)
-                .Include(o => o.User)
-                .Include(o => o.Reservation)
-                .AsNoTracking();
+        //public override async Task<OrderResponse> InsertAsync(OrderRequest request)
+        //{
+        //    // Step 1: Create base Order
+        //    var order = new Order
+        //    {
+        //        UserId = request.UserId,
+        //        ReservationId = request.ReservationId,
+        //        CreatedAt = DateTime.UtcNow,
+        //        Status = Model.Enums.OrderStatus.Pending,
+        //        OrderItems = new List<OrderItem>()
+        //    };
 
+        //    // Step 2: Get menu items from DB
+        //    var menuItems = await _context.MenuItem
+        //        .Where(mi => request.MenuItemIds.Contains(mi.Id))
+        //        .ToListAsync();
+
+        //    // Step 3: Build OrderItems
+        //    foreach (var menuItem in menuItems)
+        //    {
+        //        order.OrderItems.Add(new OrderItem
+        //        {
+        //            MenuItemId = menuItem.Id,
+        //            Quantity = 1, // default 1 — can be extended in future
+        //            UnitPrice = menuItem.Price
+        //        });
+        //    }
+
+        //    // Step 4: Save Order + OrderItems
+        //    _context.Orders.Add(order);
+        //    await _context.SaveChangesAsync();
+
+        //    // Step 5: Map to response
+        //    return _mapper.Map<OrderResponse>(order);
+        //}
+
+        protected override IQueryable<Order> ApplyFilter(IQueryable<Order> query, OrderSearchModel search)
+        {
             if (search.UserId.HasValue)
                 query = query.Where(o => o.UserId == search.UserId);
 
             if (search.Status.HasValue)
-                query = query.Where(o => o.Status == search.Status.Value);
+                query = query.Where(o => o.Status == search.Status);
 
             if (search.FromDate.HasValue)
-                query = query.Where(o => o.CreatedAt >= search.FromDate.Value);
+                query = query.Where(o => o.CreatedAt >= search.FromDate);
 
             if (search.ToDate.HasValue)
-                query = query.Where(o => o.CreatedAt <= search.ToDate.Value);
+                query = query.Where(o => o.CreatedAt <= search.ToDate);
 
-            var orders = await query.ToListAsync(cancellationToken);
-            return _mapper.Map<IEnumerable<OrderResponse>>(orders);
+            return query;
         }
 
-        public async Task<OrderResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+        protected override IQueryable<Order> AddInclude(IQueryable<Order> query)
         {
-            var order = await _context.Orders
-                .Include(o => o.OrderItems)
-                .Include(o => o.Payment)
-                .Include(o => o.User)
-                .Include(o => o.Reservation)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
-
-            return order == null ? null : _mapper.Map<OrderResponse>(order);
-        }
-
-        public async Task<OrderResponse> InsertAsync(OrderRequest request, CancellationToken cancellationToken = default)
-        {
-            var order = _mapper.Map<Order>(request);
-            order.CreatedAt = DateTime.UtcNow;
-
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync(cancellationToken);
-
-            return _mapper.Map<OrderResponse>(order);
-        }
-
-        public async Task<OrderResponse?> UpdateAsync(int id, OrderRequest request, CancellationToken cancellationToken = default)
-        {
-            var order = await _context.Orders
-                .Include(o => o.OrderItems)
-                .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
-
-            if (order == null)
-                return null;
-
-            _mapper.Map(request, order);
-            await _context.SaveChangesAsync(cancellationToken);
-
-            return _mapper.Map<OrderResponse>(order);
-        }
-
-        public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
-        {
-            var order = await _context.Orders.FindAsync(new object[] { id }, cancellationToken);
-            if (order == null)
-                return false;
-
-            _context.Orders.Remove(order);
-            await _context.SaveChangesAsync(cancellationToken);
-            return true;
+            return query.Include(o => o.OrderItems)
+                        .Include(o => o.User)
+                        .Include(o => o.Reservation)
+                        .Include(o => o.Payment);
         }
     }
 }

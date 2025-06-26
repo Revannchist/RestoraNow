@@ -1,11 +1,11 @@
 ﻿using RestoraNow.Model.Requests;
 using RestoraNow.Model.Responses;
 using RestoraNow.Model.SearchModels;
+using RestoraNow.Services.BaseServices;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Entities;
 using RestoraNow.Services.Interfaces;
 using MapsterMapper;
-using RestoraNow.Services.BaseServices;
 
 namespace RestoraNow.Services.Implementations
 {
@@ -18,11 +18,11 @@ namespace RestoraNow.Services.Implementations
         {
         }
 
-        // Optional: override ApplyFilter to customize search logic
         protected override IQueryable<Address> ApplyFilter(IQueryable<Address> query, AddressSearchModel search)
         {
             if (search.UserId.HasValue)
                 query = query.Where(a => a.UserId == search.UserId.Value);
+
             if (!string.IsNullOrWhiteSpace(search.City))
                 query = query.Where(a => a.City.Contains(search.City));
 

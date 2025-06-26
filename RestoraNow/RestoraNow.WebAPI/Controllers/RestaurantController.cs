@@ -6,10 +6,10 @@ using RestoraNow.WebAPI.Controllers.Base;
 
 namespace RestoraNow.WebAPI.Controllers
 {
-    public class MenuItemController
-        : BaseCRUDController<MenuItemResponse, MenuItemSearchModel, MenuItemRequest>
+    public class RestaurantController
+        : BaseCRUDController<RestaurantResponse, RestaurantSearchModel, RestaurantRequest>
     {
-        public MenuItemController(IMenuItemService service)
+        public RestaurantController(IRestaurantService service)
             : base(service)
         {
         }

@@ -14,5 +14,7 @@ namespace RestoraNow.Model.Responses
         public bool IsSpecialOfTheDay { get; set; }
         public int CategoryId { get; set; }
         public string CategoryName { get; set; }
+
+        public List<string> ImageUrls { get; set; } = new List<string>();
     }
 }

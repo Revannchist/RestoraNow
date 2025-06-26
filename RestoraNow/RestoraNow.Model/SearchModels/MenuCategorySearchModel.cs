@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using RestoraNow.Model.Base;
 
 namespace RestoraNow.Model.SearchModels
 {
-    public class MenuCategorySearchModel
+    public class MenuCategorySearchModel : BaseSearchObject
     {
         public string? Name { get; set; }
         public bool? IsActive { get; set; }

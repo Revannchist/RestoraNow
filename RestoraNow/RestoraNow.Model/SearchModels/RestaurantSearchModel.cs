@@ -5,9 +5,9 @@ using System.Text;
 
 namespace RestoraNow.Model.SearchModels
 {
-    public class OrderItemSearchModel : BaseSearchObject
+    public class RestaurantSearchModel : BaseSearchObject
     {
-        public int? OrderId { get; set; }
-        public int? MenuItemId { get; set; }
+        public string? Name { get; set; }
+        public bool? IsActive { get; set; }
     }
 }

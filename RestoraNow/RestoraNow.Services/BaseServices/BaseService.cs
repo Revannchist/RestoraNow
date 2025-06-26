@@ -16,14 +16,24 @@ namespace RestoraNow.Services.BaseServices
     {
         protected readonly ApplicationDbContext _context;
         protected readonly IMapper _mapper;
+
         protected BaseService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
         }
+
+        protected virtual IQueryable<TEntity> AddInclude(IQueryable<TEntity> query)
+        {
+            return query;
+        }
+
         public virtual async Task<PagedResult<TModel>> GetAsync(TSearch search)
         {
             IQueryable<TEntity> query = _context.Set<TEntity>().AsNoTracking();
+
+            query = AddInclude(query);
+
             query = ApplyFilter(query, search);
             int? totalCount = null;
             if (search.IncludeTotalCount)
@@ -41,11 +51,15 @@ namespace RestoraNow.Services.BaseServices
             var mappedList = _mapper.Map<List<TModel>>(list);
             return new PagedResult<TModel> { Items = mappedList, TotalCount = totalCount };
         }
+
         public virtual async Task<TModel?> GetByIdAsync(int id)
         {
-            var entity = await _context.Set<TEntity>().FindAsync(id);
+            IQueryable<TEntity> query = _context.Set<TEntity>().AsNoTracking(); // Add AsNoTracking()
+            query = AddInclude(query);
+            var entity = await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id);
             return entity == null ? default : _mapper.Map<TModel>(entity);
         }
+
         protected virtual IQueryable<TEntity> ApplyFilter(IQueryable<TEntity> query, TSearch search)
         {
             return query;

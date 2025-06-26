@@ -5,6 +5,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using RestoraNow.Model.Enums;
+
 
 namespace RestoraNow.Services.Entities
 {
@@ -42,13 +44,5 @@ namespace RestoraNow.Services.Entities
         public virtual Table Table { get; set; }
     }
 
-    public enum ReservationStatus
-    {
-        Pending,
-        Confirmed,
-        Cancelled,
-        Completed,
-        NoShow
-    }
 
 }

@@ -14,6 +14,7 @@ namespace RestoraNow.Services.BaseServices
         BaseService<TModel, TSearch, TEntity>, ICRUDService<TModel, TSearch, TCreateUpdate> where TSearch : BaseSearchObject where TEntity : class, new()
     {
         protected BaseCRUDService(ApplicationDbContext context, IMapper mapper) : base(context, mapper) { }
+
         public virtual async Task<TModel> InsertAsync(TCreateUpdate request)
         {
             var entity = _mapper.Map<TEntity>(request);
@@ -21,6 +22,7 @@ namespace RestoraNow.Services.BaseServices
             await _context.SaveChangesAsync();
             return _mapper.Map<TModel>(entity);
         }
+
         public virtual async Task<TModel?> UpdateAsync(int id, TCreateUpdate request)
         {
             var entity = await _context.Set<TEntity>().FindAsync(id);
@@ -30,6 +32,7 @@ namespace RestoraNow.Services.BaseServices
             await _context.SaveChangesAsync();
             return _mapper.Map<TModel>(entity);
         }
+
         public virtual async Task<bool> DeleteAsync(int id)
         {
             var entity = await _context.Set<TEntity>().FindAsync(id);
@@ -39,5 +42,11 @@ namespace RestoraNow.Services.BaseServices
             await _context.SaveChangesAsync();
             return true;
         }
+
+        //protected virtual IQueryable<TEntity> AddInclude(IQueryable<TEntity> query)
+        //{
+        //    return query;
+        //}
+
     }
 }

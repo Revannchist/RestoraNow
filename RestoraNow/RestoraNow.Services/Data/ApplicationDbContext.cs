@@ -19,7 +19,6 @@ namespace RestoraNow.Services.Data
         public DbSet<Table> Tables { get; set; }
         public DbSet<Reservation> Reservations { get; set; }
         public DbSet<Restaurant> Restaurants { get; set; }
-        public DbSet<Image> Images { get; set; }
         public DbSet<MenuItem> MenuItem { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<MenuCategory> Categories { get; set; }
@@ -28,6 +27,8 @@ namespace RestoraNow.Services.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Address> Address { get; set; }
         public DbSet<Favorite> Favorite { get; set; }
+        public DbSet<MenuItemImage> MenuItemImages { get; set; }
+        public DbSet<UserImage> UserImages { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
