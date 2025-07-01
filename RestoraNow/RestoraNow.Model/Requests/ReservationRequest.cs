@@ -18,7 +18,7 @@ namespace RestoraNow.Model.Requests
         public DateTime ReservationDate { get; set; }
 
         [Required]
-        public TimeSpan ReservationTime { get; set; }
+        public TimeSpan ReservationTime { get; set; } 
 
         [Required]
         public int GuestCount { get; set; }

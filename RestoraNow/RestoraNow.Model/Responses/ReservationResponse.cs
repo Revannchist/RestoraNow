@@ -12,9 +12,11 @@ namespace RestoraNow.Model.Responses
         public string? UserName { get; set; }
 
         public int TableId { get; set; }
-        public string? TableName { get; set; }
+        public string? TableNumber { get; set; }
 
         public DateTime ReservationDate { get; set; }
+
+        //[JsonConverter(typeof(JsonTimeSpanConverter))]
         public TimeSpan ReservationTime { get; set; }
         public int GuestCount { get; set; }
 

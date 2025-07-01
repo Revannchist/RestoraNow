@@ -2,9 +2,8 @@
 
 namespace RestoraNow.Model.SearchModels
 {
-    public class UserImageSearchModel
+    public class UserImageSearchModel : BaseSearchObject
     {
         public int? UserId { get; set; }
-        public string? Description { get; set; }
     }
 }

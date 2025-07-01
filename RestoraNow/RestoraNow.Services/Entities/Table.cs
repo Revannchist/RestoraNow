@@ -26,6 +26,8 @@ namespace RestoraNow.Services.Entities
         [MaxLength(500)]
         public string Notes { get; set; }
 
+        public int RestaurantId { get; set; }
+
         [ForeignKey("RestaurantId")]
         public Restaurant Restaurant { get; set; }
 
