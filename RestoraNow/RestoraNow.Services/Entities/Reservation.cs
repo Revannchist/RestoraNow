@@ -44,5 +44,4 @@ namespace RestoraNow.Services.Entities
         public virtual Table Table { get; set; }
     }
 
-
 }

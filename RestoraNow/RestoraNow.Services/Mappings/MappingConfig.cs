@@ -21,29 +21,27 @@ namespace RestoraNow.Services.Mappings
 
 
             TypeAdapterConfig<Review, ReviewResponse>.NewConfig()
-                .Map(dest => dest.UserName, src => src.User.Username)
                 .Map(dest => dest.RestaurantName, src => src.Restaurant.Name);
-
-
-            TypeAdapterConfig<Role, RoleResponse>.NewConfig();
 
 
             TypeAdapterConfig<Table, TableResponse>.NewConfig()
                 .Map(dest => dest.RestaurantName, src => src.Restaurant.Name);
 
-            TypeAdapterConfig<UserImage, UserImageResponse>.NewConfig()
-                .Map(dest => dest.Username, src => src.User.Username);
-
-            TypeAdapterConfig<UserRole, UserRoleResponse>.NewConfig()
-                .Map(dest => dest.Username, src => src.User.Username)
-                .Map(dest => dest.RoleName, src => src.Role.Name);
+            TypeAdapterConfig<UserImage, UserImageResponse>.NewConfig();
 
 
+
+            //Reservation
             TypeAdapterConfig<Reservation, ReservationResponse>.NewConfig()
-                .Map(dest => dest.UserName, src => src.User.FirstName + " " + src.User.LastName)
-                .Map(dest => dest.TableNumber, src => src.Table.TableNumber.ToString())
-                .Map(dest => dest.ReservationTime, src => src.ReservationTime.ToString(@"hh\:mm"));  // Format TimeSpan as HH:mm
+                .Map<string,string>(dest => dest.UserName, src => src.User != null ? src.User.FirstName + " " + src.User.LastName : "Unknown User")
+                .Map<string, string>(dest => dest.TableNumber, src => src.Table != null ? src.Table.TableNumber.ToString() : "Unknown Table")
+                .Map(dest => dest.ReservationTime, src => src.ReservationTime.ToString(@"hh\:mm")); // Format TimeSpan as HH:mm
 
+
+
+            //Favorites
+            TypeAdapterConfig<Favorite, FavoriteResponse>.NewConfig()
+                .Map(dest => dest.MenuItemName, src => src.MenuItem.Name);
 
 
 

@@ -1,4 +1,5 @@
 ﻿using MapsterMapper;
+using Microsoft.EntityFrameworkCore;
 using RestoraNow.Model.Requests;
 using RestoraNow.Model.Responses;
 using RestoraNow.Model.SearchModels;
@@ -28,5 +29,13 @@ namespace RestoraNow.Services.Implementations
 
             return query;
         }
+
+        protected override IQueryable<Favorite> AddInclude(IQueryable<Favorite> query)
+        {
+            return query
+                .Include(f => f.User)
+                .Include(f => f.MenuItem);
+        }
+
     }
 }

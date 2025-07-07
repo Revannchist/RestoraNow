@@ -1,4 +1,5 @@
 ﻿using MapsterMapper;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RestoraNow.Model.Requests;
 using RestoraNow.Model.Responses;
@@ -10,34 +11,36 @@ using RestoraNow.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace RestoraNow.Services.Implementations
 {
-    public class UserService
-        : BaseCRUDService<UserResponse, UserSearchModel, User, UserRequest>, IUserService
+    public class UserService : BaseCRUDService<UserResponse, UserSearchModel, User, UserRequest>, IUserService
     {
-        public UserService(ApplicationDbContext context, IMapper mapper)
+        private readonly UserManager<User> _userManager;
+        private readonly ApplicationDbContext _context;
+        private readonly IMapper _mapper;
+
+        public UserService(
+            ApplicationDbContext context,
+            IMapper mapper,
+            UserManager<User> userManager)
             : base(context, mapper)
         {
+            _context = context;
+            _mapper = mapper;
+            _userManager = userManager;
         }
 
         protected override IQueryable<User> AddInclude(IQueryable<User> query)
         {
-            return query
-                .Include(x => x.UserRoles).ThenInclude(ur => ur.Role)
-                .Include(x => x.Images);
+            return query.Include(x => x.Images);
         }
 
         protected override IQueryable<User> ApplyFilter(IQueryable<User> query, UserSearchModel search)
         {
             if (!string.IsNullOrWhiteSpace(search.Name))
                 query = query.Where(u => u.FirstName.Contains(search.Name) || u.LastName.Contains(search.Name));
-
-            if (!string.IsNullOrWhiteSpace(search.Username))
-                query = query.Where(u => u.Username.Contains(search.Username));
 
             if (search.IsActive.HasValue)
                 query = query.Where(u => u.IsActive == search.IsActive.Value);
@@ -47,42 +50,34 @@ namespace RestoraNow.Services.Implementations
 
         public override async Task<UserResponse> InsertAsync(UserRequest request)
         {
-            var salt = GenerateSalt();
-            var hash = HashPassword(request.Password, salt);
-
-            var entity = new User
+            var user = new User
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
-                Username = request.Username,
-                PasswordHash = hash,
-                PasswordSalt = salt,
+                UserName = request.Email, // Required by Identity; can be same as Email
                 PhoneNumber = request.PhoneNumber,
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.Users.Add(entity);
-            await _context.SaveChangesAsync();
+            var result = await _userManager.CreateAsync(user, request.Password);
+            if (!result.Succeeded)
+            {
+                throw new Exception($"User creation failed: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            }
 
-            return _mapper.Map<UserResponse>(entity);
-        }
+            // Optionally assign roles from request (if UserRequest includes roles)
+            if (request.Roles != null && request.Roles.Any())
+            {
+                var roleResult = await _userManager.AddToRolesAsync(user, request.Roles);
+                if (!roleResult.Succeeded)
+                {
+                    throw new Exception($"Failed to assign roles: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
+                }
+            }
 
-        private string GenerateSalt()
-        {
-            byte[] saltBytes = new byte[16];
-            using var provider = RandomNumberGenerator.Create();
-            provider.GetBytes(saltBytes);
-            return Convert.ToBase64String(saltBytes);
-        }
-
-        private string HashPassword(string password, string salt)
-        {
-            var combined = Encoding.UTF8.GetBytes(password + salt);
-            using var sha256 = SHA256.Create();
-            var hashBytes = sha256.ComputeHash(combined);
-            return Convert.ToBase64String(hashBytes);
+            return _mapper.Map<UserResponse>(user);
         }
     }
 }

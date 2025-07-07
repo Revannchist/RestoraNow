@@ -20,6 +20,7 @@ namespace RestoraNow.Model.Responses
         public TimeSpan ReservationTime { get; set; }
         public int GuestCount { get; set; }
 
+
         public ReservationStatus Status { get; set; }
         public string? SpecialRequests { get; set; }
         public DateTime? ConfirmedAt { get; set; }
