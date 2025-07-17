@@ -19,42 +19,6 @@ namespace RestoraNow.Services.Implementations
         {
         }
 
-        //public override async Task<OrderResponse> InsertAsync(OrderRequest request)
-        //{
-        //    // Step 1: Create base Order
-        //    var order = new Order
-        //    {
-        //        UserId = request.UserId,
-        //        ReservationId = request.ReservationId,
-        //        CreatedAt = DateTime.UtcNow,
-        //        Status = Model.Enums.OrderStatus.Pending,
-        //        OrderItems = new List<OrderItem>()
-        //    };
-
-        //    // Step 2: Get menu items from DB
-        //    var menuItems = await _context.MenuItem
-        //        .Where(mi => request.MenuItemIds.Contains(mi.Id))
-        //        .ToListAsync();
-
-        //    // Step 3: Build OrderItems
-        //    foreach (var menuItem in menuItems)
-        //    {
-        //        order.OrderItems.Add(new OrderItem
-        //        {
-        //            MenuItemId = menuItem.Id,
-        //            Quantity = 1, // default 1 — can be extended in future
-        //            UnitPrice = menuItem.Price
-        //        });
-        //    }
-
-        //    // Step 4: Save Order + OrderItems
-        //    _context.Orders.Add(order);
-        //    await _context.SaveChangesAsync();
-
-        //    // Step 5: Map to response
-        //    return _mapper.Map<OrderResponse>(order);
-        //}
-
         protected override IQueryable<Order> ApplyFilter(IQueryable<Order> query, OrderSearchModel search)
         {
             if (search.UserId.HasValue)

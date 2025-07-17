@@ -60,6 +60,8 @@ namespace RestoraNow.Services.Data
                     throw new Exception($"Failed to create admin user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                 }
             }
+
+
         }
     }
 }
