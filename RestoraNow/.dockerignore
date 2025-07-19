@@ -1,30 +1,78 @@
-**/.classpath
-**/.dockerignore
+# Environment files
 **/.env
+**/.env.*
+**/secrets.dev.yaml
+**/values.dev.yaml
+
+# Git and version control
 **/.git
 **/.gitignore
+
+# IDE and editor files
+**/.vs
+**/.vscode
+**/.classpath
 **/.project
 **/.settings
 **/.toolstarget
-**/.vs
-**/.vscode
+*.user
 **/*.*proj.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build artifacts
+**/bin
+**/obj
+**/out
+**/publish
+**/artifacts
+
+# Logs
+**/logs
+**/*.log
+**/npm-debug.log
+
+# Database files
 **/*.dbmdl
 **/*.jfm
-**/azds.yaml
-**/bin
-**/charts
+**/*.mdf
+**/*.ldf
+**/*.ndf
+
+# Docker files (don't need these in the image)
 **/docker-compose*
 **/Dockerfile*
-**/node_modules
-**/npm-debug.log
-**/obj
-**/secrets.dev.yaml
-**/values.dev.yaml
+**/.dockerignore
+
+# Documentation
 LICENSE
 README.md
-!**/.gitignore
-!.git/HEAD
-!.git/config
-!.git/packed-refs
-!.git/refs/heads/**
+**/*.md
+
+# Node.js (if you have any frontend components)
+**/node_modules
+**/npm-debug.log
+
+# Test results
+**/TestResults
+**/*.trx
+
+# NuGet packages (will be restored during build)
+**/packages
+**/*.nupkg
+
+# Azure and cloud deployment files
+**/azds.yaml
+**/charts
+**/*.pubxml
+**/*.publishproj
+
+# Temporary files
+**/tmp
+**/*.tmp
+**/*.cache
+
+# Coverage reports
+**/coverage
+**/*.coverage

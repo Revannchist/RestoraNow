@@ -75,6 +75,15 @@ namespace RestoraNow.WebAPI
                 });
             });
 
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+                Console.WriteLine("CONNECTION STRING: " + connectionString);
+
+            if (connectionString.Contains("restoranow-sql"))
+            {
+                Console.WriteLine("Using Docker connection string");
+            }
+
+
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -112,7 +121,7 @@ namespace RestoraNow.WebAPI
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero, // Re-added for strict expiration
+                    ClockSkew = TimeSpan.Zero,
                     RoleClaimType = ClaimTypes.Role, // Map role claim
                     NameClaimType = ClaimTypes.NameIdentifier // Map name claim
                 };
@@ -120,21 +129,29 @@ namespace RestoraNow.WebAPI
 
             var app = builder.Build();
 
-            if (app.Environment.IsDevelopment())
-            {
+            //Docker is treated as Production, so for the swagger to show up I disabled the IsDevelopment line.
+            //Later when I make the frontend I'll enable it
+
+            //if (app.Environment.IsDevelopment())
+            //{
                 app.UseSwagger();
                 app.UseSwaggerUI();
-            }
+            //}
 
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.UseHttpsRedirection();
+            //app.UseHttpsRedirection();
             app.MapControllers();
 
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
+                var dbContext = services.GetRequiredService<ApplicationDbContext>();
+
+                // Ensure the database is created and migrations are applied
+                await dbContext.Database.MigrateAsync();
+
                 var seeder = services.GetRequiredService<DataSeeder>();
                 await seeder.SeedRolesAsync();
             }

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace RestoraNow.Services.Migrations
 {
     /// <inheritdoc />
-    public partial class newDB : Migration
+    public partial class dbchange : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

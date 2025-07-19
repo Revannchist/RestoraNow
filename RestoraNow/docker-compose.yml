@@ -1,0 +1,32 @@
+services:
+  restoranow-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${SA_PASSWORD}
+      - MSSQL_PID=Developer
+    ports:
+      - "1402:1433"
+    networks:
+      - restoranow-2025
+ 
+  restoranow-api:
+    build:
+      context: .
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=restoranow-sql;Database=IB200011;User=sa;Password=${SA_PASSWORD};ConnectRetryCount=0;TrustServerCertificate=True
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=RestoraNow
+      - Jwt__Audience=RestoraNow
+    ports:
+      - "5205:5205"
+    networks:
+      - restoranow-2025
+    depends_on:
+      - restoranow-sql
+
+networks:
+  restoranow-2025:
+    driver: bridge
