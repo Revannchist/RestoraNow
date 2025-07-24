@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 namespace RestoraNow.Services.Implementations
 {
     public class TableService
-        : BaseCRUDService<TableResponse, TableSearchModel, Table, TableRequest>,
+        : BaseCRUDService<TableResponse, TableSearchModel, Table, TableCreateRequest>,
           ITableService
     {
         public TableService(ApplicationDbContext context, IMapper mapper)

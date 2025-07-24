@@ -12,8 +12,8 @@ using RestoraNow.Services.Data;
 namespace RestoraNow.Services.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250719155337_initialcreate")]
-    partial class initialcreate
+    [Migration("20250724104608_newdb")]
+    partial class newdb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

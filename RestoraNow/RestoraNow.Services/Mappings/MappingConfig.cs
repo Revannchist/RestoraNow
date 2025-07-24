@@ -27,6 +27,9 @@ namespace RestoraNow.Services.Mappings
             TypeAdapterConfig<Table, TableResponse>.NewConfig()
                 .Map(dest => dest.RestaurantName, src => src.Restaurant.Name);
 
+
+
+
             TypeAdapterConfig<UserImage, UserImageResponse>.NewConfig();
 
 

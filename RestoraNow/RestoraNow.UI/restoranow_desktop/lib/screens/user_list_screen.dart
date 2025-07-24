@@ -3,9 +3,17 @@ import 'package:provider/provider.dart';
 import '../layouts/main_layout.dart';
 import '../models/user_model.dart';
 import '../providers/user_provider.dart';
+import '../theme/theme.dart';
 
 class UserListScreen extends StatelessWidget {
   const UserListScreen({Key? key}) : super(key: key);
+
+  static const List<String> availableRoles = [
+    'Admin',
+    'Manager',
+    'Staff',
+    'Customer',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -21,148 +29,192 @@ class UserListScreen extends StatelessWidget {
           }
 
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => _showCreateUserDialog(context),
-                  child: const Text('Add User'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton(
+                    onPressed: () => _showCreateUserDialog(context),
+                    child: const Text('Add User'),
+                  ),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 4.0,
+                ),
+                child: Row(
+                  children: const [
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'Employee',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'Contact',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Hire Date',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Status',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 80,
+                      child: Text(
+                        'Actions',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(thickness: 1),
               Expanded(
                 child: ListView.builder(
                   itemCount: provider.users.length,
                   itemBuilder: (context, index) {
                     final user = provider.users[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Name and Status Row
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    '${user.firstName} ${user.lastName}',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: user.isActive ? Colors.green : Colors.red,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    user.isActive ? 'Active' : 'Inactive',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            
-                            // Email
-                            Row(
-                              children: [
-                                const Icon(Icons.email, size: 16, color: Colors.grey),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text(user.email)),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            
-                            // Phone Number
-                            if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty)
-                              Row(
-                                children: [
-                                  const Icon(Icons.phone, size: 16, color: Colors.grey),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Text(user.phoneNumber!)),
-                                ],
-                              ),
-                            if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty)
-                              const SizedBox(height: 4),
-                            
-                            // Roles
-                            if (user.roles.isNotEmpty)
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(Icons.security, size: 16, color: Colors.grey),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Wrap(
-                                      spacing: 4,
-                                      runSpacing: 4,
-                                      children: user.roles.map((role) => Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue.shade100,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: Colors.blue.shade300),
-                                        ),
-                                        child: Text(
-                                          role,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.blue.shade700,
-                                          ),
-                                        ),
-                                      )).toList(),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            if (user.roles.isNotEmpty)
-                              const SizedBox(height: 4),
-                            
-                            // Created At
-                            Row(
-                              children: [
-                                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Created: ${_formatDateTime(user.createdAt)}',
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            
-                            // Action Buttons
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton.icon(
-                                  icon: const Icon(Icons.edit, size: 16),
-                                  label: const Text('Edit'),
-                                  onPressed: () => _showUpdateUserDialog(context, user),
-                                ),
-                                const SizedBox(width: 8),
-                                TextButton.icon(
-                                  icon: const Icon(Icons.delete, size: 16),
-                                  label: const Text('Delete'),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                  ),
-                                  onPressed: () => _confirmDelete(context, user.id),
-                                ),
-                              ],
-                            ),
-                          ],
+                    return Container(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 4.0,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12.0,
+                        vertical: 8.0,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context).dividerColor,
                         ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Employee & role
+                          Expanded(
+                            flex: 2,
+                            child: Row(
+                              children: [
+                                const CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: Colors.deepPurpleAccent,
+                                  child: Icon(
+                                    Icons.person,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${user.firstName} ${user.lastName}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      if (user.roles.isNotEmpty)
+                                        AppTheme.roleChip(user.roles.first),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Contact
+                          Expanded(
+                            flex: 2,
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.phone,
+                                  size: 16,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    user.phoneNumber ?? '-',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Hire Date
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(_formatDateTime(user.createdAt)),
+                              ],
+                            ),
+                          ),
+                          // Status
+                          Expanded(
+                            child: AppTheme.statusChip(isActive: user.isActive),
+                          ),
+                          // Actions
+                          SizedBox(
+                            width: 80,
+                            child: Center(
+                              child: Wrap(
+                                spacing: 4,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, size: 18),
+                                    onPressed: () =>
+                                        _showUpdateUserDialog(context, user),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.info_outline,
+                                      size: 18,
+                                    ),
+                                    onPressed: () {},
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, size: 18),
+                                    color: Colors.red,
+                                    onPressed: () =>
+                                        _confirmDelete(context, user.id),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -200,23 +252,35 @@ class UserListScreen extends StatelessWidget {
                   controller: firstNameController,
                   decoration: const InputDecoration(labelText: 'First Name'),
                 ),
+                const SizedBox(height: 12),
+
                 TextField(
                   controller: lastNameController,
                   decoration: const InputDecoration(labelText: 'Last Name'),
                 ),
+                const SizedBox(height: 12),
+
                 TextField(
                   controller: emailController,
                   decoration: const InputDecoration(labelText: 'Email'),
                 ),
+                const SizedBox(height: 12),
+
                 TextField(
                   controller: passwordController,
                   decoration: const InputDecoration(labelText: 'Password'),
                   obscureText: true,
                 ),
+                const SizedBox(height: 12),
+
                 TextField(
                   controller: phoneNumberController,
-                  decoration: const InputDecoration(labelText: 'Phone Number (Optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number (Optional)',
+                  ),
                 ),
+                const SizedBox(height: 12),
+
                 CheckboxListTile(
                   title: const Text('Is Active'),
                   value: isActive,
@@ -235,6 +299,20 @@ class UserListScreen extends StatelessWidget {
             ),
             TextButton(
               onPressed: () async {
+                if (firstNameController.text.isEmpty ||
+                    lastNameController.text.isEmpty ||
+                    emailController.text.isEmpty ||
+                    passwordController.text.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Please fill all required fields. Password must be at least 6 characters.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
                 final user = UserModel(
                   id: 0,
                   firstName: firstNameController.text,
@@ -248,10 +326,11 @@ class UserListScreen extends StatelessWidget {
                       ? null
                       : phoneNumberController.text,
                 );
+
                 await context.read<UserProvider>().createUser(
-                      user,
-                      passwordController.text,
-                    );
+                  user,
+                  passwordController.text,
+                );
                 Navigator.pop(context);
               },
               child: const Text('Create'),
@@ -266,8 +345,12 @@ class UserListScreen extends StatelessWidget {
     final firstNameController = TextEditingController(text: user.firstName);
     final lastNameController = TextEditingController(text: user.lastName);
     final emailController = TextEditingController(text: user.email);
+    final passwordController = TextEditingController();
     final phoneNumberController = TextEditingController(text: user.phoneNumber);
     bool isActive = user.isActive;
+
+    // Default to first role or null
+    String? selectedRole = user.roles.isNotEmpty ? user.roles.first : null;
 
     showDialog(
       context: context,
@@ -282,18 +365,52 @@ class UserListScreen extends StatelessWidget {
                   controller: firstNameController,
                   decoration: const InputDecoration(labelText: 'First Name'),
                 ),
+                const SizedBox(height: 12),
+
                 TextField(
                   controller: lastNameController,
                   decoration: const InputDecoration(labelText: 'Last Name'),
                 ),
+                const SizedBox(height: 12),
+
                 TextField(
                   controller: emailController,
                   decoration: const InputDecoration(labelText: 'Email'),
                 ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: passwordController,
+                  decoration: const InputDecoration(
+                    labelText: 'New Password (optional)',
+                  ),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 12),
+
                 TextField(
                   controller: phoneNumberController,
-                  decoration: const InputDecoration(labelText: 'Phone Number (Optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number (Optional)',
+                  ),
                 ),
+                const SizedBox(height: 12),
+
+                DropdownButtonFormField<String>(
+                  value: selectedRole,
+                  items: availableRoles
+                      .map(
+                        (role) =>
+                            DropdownMenuItem(value: role, child: Text(role)),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    selectedRole = value;
+                  },
+                  decoration: const InputDecoration(labelText: 'Role'),
+                ),
+                const SizedBox(height: 12),
+
                 CheckboxListTile(
                   title: const Text('Is Active'),
                   value: isActive,
@@ -312,21 +429,48 @@ class UserListScreen extends StatelessWidget {
             ),
             TextButton(
               onPressed: () async {
-                final updatedUser = UserModel(
-                  id: user.id,
+                if (firstNameController.text.isEmpty ||
+                    lastNameController.text.isEmpty ||
+                    emailController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please fill all required fields.'),
+                    ),
+                  );
+                  return;
+                }
+
+                if (passwordController.text.isNotEmpty &&
+                    passwordController.text.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Password must be at least 6 characters.'),
+                    ),
+                  );
+                  return;
+                }
+
+                if (selectedRole == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please select a role.')),
+                  );
+                  return;
+                }
+
+                final updatedUser = user.copyWith(
                   firstName: firstNameController.text,
                   lastName: lastNameController.text,
                   email: emailController.text,
-                  isActive: isActive,
-                  createdAt: user.createdAt,
-                  lastLoginAt: user.lastLoginAt,
-                  username: user.username,
-                  roles: user.roles,
-                  imageUrls: user.imageUrls,
                   phoneNumber: phoneNumberController.text.isEmpty
                       ? null
                       : phoneNumberController.text,
+                  isActive: isActive,
+                  password: passwordController.text.isEmpty
+                      ? null
+                      : passwordController.text,
+                  roles: [selectedRole!],
                 );
+
                 await context.read<UserProvider>().updateUser(updatedUser);
                 Navigator.pop(context);
               },

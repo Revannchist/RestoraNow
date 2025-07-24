@@ -28,9 +28,7 @@ namespace RestoraNow.WebAPI.Controllers.Base
             var result = await _service.GetByIdAsync(id);
             if (result == null)
                 return NotFound();
-
             return Ok(result);
         }
     }
-
 }

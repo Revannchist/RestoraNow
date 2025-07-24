@@ -6,7 +6,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 
 namespace RestoraNow.WebAPI.Controllers
 {
-    public class UserController : BaseCRUDController<UserResponse, UserSearchModel, UserRequest>
+    public class UserController : BaseCRUDController<UserResponse, UserSearchModel, UserCreateRequest, UserUpdateRequest>
     {
         public UserController(IUserService service) : base(service)
         {

@@ -23,6 +23,5 @@ namespace RestoraNow.Services.Entities
         public ICollection<UserImage> Images { get; set; } = new List<UserImage>();
         public ICollection<Address> Addresses { get; set; } = new List<Address>();
 
-
     }
 }

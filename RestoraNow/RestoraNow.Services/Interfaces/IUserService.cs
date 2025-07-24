@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace RestoraNow.Services.Interfaces
 {
-    public interface IUserService : ICRUDService<UserResponse, UserSearchModel, UserRequest>
+    public interface IUserService : ICRUDService<UserResponse, UserSearchModel, UserCreateRequest, UserUpdateRequest>
     {
     }
 }

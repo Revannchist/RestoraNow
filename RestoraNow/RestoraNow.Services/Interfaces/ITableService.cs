@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace RestoraNow.Services.Interfaces
 {
-    public interface ITableService : ICRUDService<TableResponse, TableSearchModel, TableRequest>
+    public interface ITableService : ICRUDService<TableResponse, TableSearchModel, TableCreateRequest>
     {
     }
 }

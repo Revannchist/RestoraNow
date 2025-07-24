@@ -69,7 +69,7 @@ namespace RestoraNow.WebAPI.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserRequest request)
+        public async Task<IActionResult> Register([FromBody] UserCreateRequest request)
         {
             if (!ModelState.IsValid)
             {

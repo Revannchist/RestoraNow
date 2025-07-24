@@ -4,18 +4,18 @@ using RestoraNow.Services.Interfaces.Base;
 
 namespace RestoraNow.WebAPI.Controllers.Base
 {
-    public class BaseCRUDController<TModel, TSearch, TCreateUpdate> : BaseController<TModel, TSearch>
+    public class BaseCRUDController<TModel, TSearch, TInsert, TUpdate> : BaseController<TModel, TSearch>
         where TSearch : BaseSearchObject, new()
     {
-        private readonly ICRUDService<TModel, TSearch, TCreateUpdate> _crudService;
+        private readonly ICRUDService<TModel, TSearch, TInsert, TUpdate> _crudService;
 
-        public BaseCRUDController(ICRUDService<TModel, TSearch, TCreateUpdate> service) : base(service)
+        public BaseCRUDController(ICRUDService<TModel, TSearch, TInsert, TUpdate> service) : base(service)
         {
             _crudService = service;
         }
 
         [HttpPost]
-        public async Task<ActionResult<TModel>> Create([FromBody] TCreateUpdate request)
+        public async Task<ActionResult<TModel>> Create([FromBody] TInsert request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -25,7 +25,7 @@ namespace RestoraNow.WebAPI.Controllers.Base
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<TModel>> Update(int id, [FromBody] TCreateUpdate request)
+        public async Task<ActionResult<TModel>> Update(int id, [FromBody] TUpdate request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -51,4 +51,12 @@ namespace RestoraNow.WebAPI.Controllers.Base
         }
     }
 
+    // Backward compatible CRUD Controller that uses the same type for create and update
+    public class BaseCRUDController<TModel, TSearch, TCreateUpdate> : BaseCRUDController<TModel, TSearch, TCreateUpdate, TCreateUpdate>
+        where TSearch : BaseSearchObject, new()
+    {
+        public BaseCRUDController(ICRUDService<TModel, TSearch, TCreateUpdate> service) : base(service)
+        {
+        }
+    }
 }

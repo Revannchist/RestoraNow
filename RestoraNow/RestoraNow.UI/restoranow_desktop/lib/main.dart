@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'layouts/main_layout.dart';
 import 'screens/user_list_screen.dart';
 import 'providers/user_provider.dart';
+import 'theme/theme.dart'; // 
 
 void main() {
   runApp(const MyApp());
@@ -19,10 +21,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'RestoraNow Admin',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
-        ),
+        theme: AppTheme.lightTheme, // 
         initialRoute: '/home',
         routes: {
           '/home': (context) => const MyHomePage(title: 'RestoraNow Admin Panel'),
@@ -44,7 +43,7 @@ class MyHomePage extends StatelessWidget {
       child: Center(
         child: Text(
           'Dashboard content goes here',
-          style: TextStyle(fontSize: 18),
+          style: Theme.of(context).textTheme.titleLarge, //
         ),
       ),
     );

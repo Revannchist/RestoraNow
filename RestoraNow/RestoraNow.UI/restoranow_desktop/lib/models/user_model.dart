@@ -10,6 +10,7 @@ class UserModel {
   final String? phoneNumber;
   final List<String> roles;
   final List<String> imageUrls;
+  final String? password;
 
   UserModel({
     required this.id,
@@ -23,23 +24,56 @@ class UserModel {
     this.phoneNumber,
     required this.roles,
     required this.imageUrls,
+    this.password,
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
+  // ✅ FIX: Add missing parameters here
+  UserModel copyWith({
+    int? id,
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? username,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? lastLoginAt,
+    String? phoneNumber,
+    List<String>? roles,
+    List<String>? imageUrls,
+    String? password,
+  }) {
     return UserModel(
-      id: json['id'],
-      firstName: json['firstName'],
-      lastName: json['lastName'],
-      email: json['email'],
-      username: json['username'],
-      isActive: json['isActive'],
-      createdAt: DateTime.parse(json['createdAt']),
-      lastLoginAt: json['lastLoginAt'] != null
-          ? DateTime.parse(json['lastLoginAt'])
-          : null,
-      phoneNumber: json['phoneNumber'],
-      roles: List<String>.from(json['roles']),
-      imageUrls: List<String>.from(json['imageUrls']),
+      id: id ?? this.id,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      email: email ?? this.email,
+      username: username ?? this.username,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      roles: roles ?? this.roles,
+      imageUrls: imageUrls ?? this.imageUrls,
+      password: password ?? this.password,
     );
   }
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+  return UserModel(
+    id: json['id'],
+    firstName: json['firstName'],
+    lastName: json['lastName'],
+    email: json['email'],
+    username: json['username'],
+    isActive: json['isActive'],
+    createdAt: DateTime.parse(json['createdAt']),
+    lastLoginAt: json['lastLoginAt'] != null ? DateTime.parse(json['lastLoginAt']) : null,
+    phoneNumber: json['phoneNumber'],
+    roles: List<String>.from(json['roles']),
+    imageUrls: List<String>.from(json['imageUrls']),
+    password: null, // never returned from backend for security reasons
+  );
 }
+
+}
+
