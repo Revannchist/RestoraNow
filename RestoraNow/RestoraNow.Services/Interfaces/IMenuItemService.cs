@@ -7,7 +7,7 @@ using RestoraNow.Services.Interfaces.Base;
 namespace RestoraNow.Services.Interfaces
 {
     public interface IMenuItemService
-        : ICRUDService<MenuItemResponse, MenuItemSearchModel, MenuItemRequest>
+        : ICRUDService<MenuItemResponse, MenuItemSearchModel, MenuItemRequest, MenuItemRequest>
     {
     }
 }

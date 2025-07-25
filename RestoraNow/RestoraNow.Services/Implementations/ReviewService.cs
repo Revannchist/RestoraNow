@@ -7,16 +7,11 @@ using RestoraNow.Services.BaseServices;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Entities;
 using RestoraNow.Services.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RestoraNow.Services.Implementations
 {
     public class ReviewService
-        : BaseCRUDService<ReviewResponse, ReviewSearchModel, Review, ReviewRequest>,
+        : BaseCRUDService<ReviewResponse, ReviewSearchModel, Review, ReviewRequest, ReviewRequest>,
           IReviewService
     {
         public ReviewService(ApplicationDbContext context, IMapper mapper)
@@ -42,6 +37,66 @@ namespace RestoraNow.Services.Implementations
         {
             return query.Include(r => r.User)
                         .Include(r => r.Restaurant);
+        }
+
+        public override async Task<ReviewResponse> InsertAsync(ReviewRequest request)
+        {
+            if (!await _context.Users.AnyAsync(u => u.Id == request.UserId))
+                throw new KeyNotFoundException($"User with ID {request.UserId} was not found.");
+
+            if (!await _context.Restaurants.AnyAsync(r => r.Id == request.RestaurantId))
+                throw new KeyNotFoundException($"Restaurant with ID {request.RestaurantId} was not found.");
+
+            var exists = await _context.Reviews.AnyAsync(r =>
+                r.UserId == request.UserId && r.RestaurantId == request.RestaurantId);
+
+            if (exists)
+                throw new InvalidOperationException("You have already reviewed this restaurant.");
+
+            return await base.InsertAsync(request);
+        }
+
+        public override async Task<ReviewResponse?> UpdateAsync(int id, ReviewRequest request)
+        {
+            var entity = await _context.Reviews.FindAsync(id);
+            if (entity == null)
+                throw new KeyNotFoundException($"Review with ID {id} was not found.");
+
+            if (!await _context.Users.AnyAsync(u => u.Id == request.UserId))
+                throw new KeyNotFoundException($"User with ID {request.UserId} was not found.");
+
+            if (!await _context.Restaurants.AnyAsync(r => r.Id == request.RestaurantId))
+                throw new KeyNotFoundException($"Restaurant with ID {request.RestaurantId} was not found.");
+
+            _mapper.Map(request, entity);
+            await _context.SaveChangesAsync();
+
+            return _mapper.Map<ReviewResponse>(entity);
+        }
+
+        public override async Task<ReviewResponse?> GetByIdAsync(int id)
+        {
+            var entity = await _context.Reviews
+                .Include(r => r.User)
+                .Include(r => r.Restaurant)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (entity == null)
+                throw new KeyNotFoundException($"Review with ID {id} was not found.");
+
+            return _mapper.Map<ReviewResponse>(entity);
+        }
+
+        public override async Task<bool> DeleteAsync(int id)
+        {
+            var entity = await _context.Reviews.FindAsync(id);
+            if (entity == null)
+                throw new KeyNotFoundException($"Review with ID {id} was not found.");
+
+            _context.Reviews.Remove(entity);
+            await _context.SaveChangesAsync();
+
+            return true;
         }
     }
 }

@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace RestoraNow.Services.Interfaces
 {
     public interface IMenuItemImageService
-        : ICRUDService<MenuItemImageResponse, MenuItemImageSearchModel, MenuItemImageRequest>
+        : ICRUDService<MenuItemImageResponse, MenuItemImageSearchModel, MenuItemImageRequest, MenuItemImageRequest>
     {
     }
 }

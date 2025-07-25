@@ -1,4 +1,4 @@
-﻿using RestoraNow.Model.Requests;
+﻿using RestoraNow.Model.Requests.User;
 using RestoraNow.Model.Responses;
 using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.Interfaces.Base;

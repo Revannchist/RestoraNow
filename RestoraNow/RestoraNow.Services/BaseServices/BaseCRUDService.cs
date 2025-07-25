@@ -5,7 +5,6 @@ using RestoraNow.Services.Interfaces.Base;
 
 namespace RestoraNow.Services.BaseServices
 {
-    // New base service with separate TInsert and TUpdate
     public abstract class BaseCRUDService<TModel, TSearch, TEntity, TInsert, TUpdate>
         : BaseService<TModel, TSearch, TEntity>, ICRUDService<TModel, TSearch, TInsert, TUpdate>
         where TSearch : BaseSearchObject
@@ -43,17 +42,6 @@ namespace RestoraNow.Services.BaseServices
             _context.Set<TEntity>().Remove(entity);
             await _context.SaveChangesAsync();
             return true;
-        }
-    }
-
-    // Backward compatible base service that uses the same type for create and update
-    public abstract class BaseCRUDService<TModel, TSearch, TEntity, TCreateUpdate>
-        : BaseCRUDService<TModel, TSearch, TEntity, TCreateUpdate, TCreateUpdate>
-        where TSearch : BaseSearchObject
-        where TEntity : class, new()
-    {
-        protected BaseCRUDService(ApplicationDbContext context, IMapper mapper) : base(context, mapper)
-        {
         }
     }
 }

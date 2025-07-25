@@ -7,7 +7,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 namespace RestoraNow.WebAPI.Controllers
 {
     public class AddressController
-        : BaseCRUDController<AddressResponse, AddressSearchModel, AddressRequest>
+        : BaseCRUDController<AddressResponse, AddressSearchModel, AddressRequest, AddressRequest>
     {
         public AddressController(IAddressService service)
             : base(service) { }

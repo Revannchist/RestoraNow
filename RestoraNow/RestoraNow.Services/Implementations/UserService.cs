@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RestoraNow.Model.Base;
-using RestoraNow.Model.Requests;
+using RestoraNow.Model.Requests.User;
 using RestoraNow.Model.Responses;
 using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.BaseServices;
@@ -54,65 +54,36 @@ namespace RestoraNow.Services.Implementations
             return userResponse;
         }
 
-        // Override GetByIdAsync to include roles
-        public override async Task<UserResponse?> GetByIdAsync(int id)
-        {
-            var user = await _userManager.FindByIdAsync(id.ToString());
-            if (user == null) return null;
-
-            // Include Images if needed
-            await _context.Entry(user)
-                .Collection(u => u.Images)
-                .LoadAsync();
-
-            var userResponse = _mapper.Map<UserResponse>(user);
-            // Get roles using UserManager and convert to List<string>
-            var roles = await _userManager.GetRolesAsync(user);
-            userResponse.Roles = roles.ToList();
-
-            return userResponse;
-        }
-
-        // Override the GetAsync method to include roles in paged results
-        public override async Task<PagedResult<UserResponse>> GetAsync(UserSearchModel search)
-        {
-            IQueryable<User> query = _context.Set<User>().AsNoTracking();
-            query = AddInclude(query);
-            query = ApplyFilter(query, search);
-
-            int? totalCount = null;
-            if (search.IncludeTotalCount)
-            {
-                totalCount = await query.CountAsync();
-            }
-
-            if (!search.RetrieveAll)
-            {
-                if (search.Page.HasValue)
-                    query = query.Skip(search.Page.Value * search.PageSize ?? 10);
-                if (search.PageSize.HasValue)
-                    query = query.Take(search.PageSize.Value);
-            }
-
-            var users = await query.ToListAsync();
-
-            // Map users and add roles
-            var userResponses = new List<UserResponse>();
-            foreach (var user in users)
-            {
-                var userResponse = await AddRolesToUserResponse(user);
-                userResponses.Add(userResponse);
-            }
-
-            return new PagedResult<UserResponse>
-            {
-                Items = userResponses,
-                TotalCount = totalCount
-            };
-        }
-
         public override async Task<UserResponse> InsertAsync(UserCreateRequest request)
         {
+            // Validate: Email already in use
+            var existingByEmail = await _userManager.FindByEmailAsync(request.Email);
+            if (existingByEmail != null)
+                throw new Exception("A user with the given email already exists."); //This response message is not triggering
+
+            // Validate: Phone number already in use
+            var existingByPhone = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber);
+            if (existingByPhone != null)
+                throw new Exception("A user with the given phone number already exists.");  //same thing with phone number
+                                                                                           // it seems to crash with error 500, 
+            // (Optional) Validate: roles exist
+            if (request.Roles != null && request.Roles.Any())
+            {
+                var roleErrors = new List<string>();
+                foreach (var role in request.Roles)
+                {
+                    if (!await _context.Roles.AnyAsync(r => r.Name == role))
+                    {
+                        roleErrors.Add($"Role '{role}' does not exist.");
+                    }
+                }
+
+                if (roleErrors.Any())
+                    throw new Exception($"Invalid roles: {string.Join(", ", roleErrors)}");
+            }
+
             var user = new User
             {
                 FirstName = request.FirstName,
@@ -127,7 +98,7 @@ namespace RestoraNow.Services.Implementations
             var result = await _userManager.CreateAsync(user, request.Password);
             if (!result.Succeeded)
             {
-                throw new Exception($"User creation failed: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                throw new Exception($"User creation failed: {string.Join(", ", result.Errors.Select(e => e.Description))}"); //same here?
             }
 
             // Assign roles from request if specified
@@ -141,7 +112,6 @@ namespace RestoraNow.Services.Implementations
             }
             else
             {
-                // Assign default "Customer" role
                 var defaultRoleResult = await _userManager.AddToRoleAsync(user, "Customer");
                 if (!defaultRoleResult.Succeeded)
                 {
@@ -149,15 +119,13 @@ namespace RestoraNow.Services.Implementations
                 }
             }
 
-            var userResponse = _mapper.Map<UserResponse>(user);
 
-            // Include roles in the response
+            var userResponse = _mapper.Map<UserResponse>(user);
             var roles = await _userManager.GetRolesAsync(user);
             userResponse.Roles = roles.ToList();
 
             return userResponse;
         }
-
 
         public override async Task<UserResponse?> UpdateAsync(int id, UserUpdateRequest request)
         {
@@ -227,6 +195,61 @@ namespace RestoraNow.Services.Implementations
             userResponse.Roles = roles.ToList();
 
             return userResponse;
+        }
+
+        public override async Task<UserResponse?> GetByIdAsync(int id)
+        {
+            var user = await _userManager.FindByIdAsync(id.ToString());
+            if (user == null) return null;
+
+            // Include Images if needed
+            await _context.Entry(user)
+                .Collection(u => u.Images)
+                .LoadAsync();
+
+            var userResponse = _mapper.Map<UserResponse>(user);
+            // Get roles using UserManager and convert to List<string>
+            var roles = await _userManager.GetRolesAsync(user);
+            userResponse.Roles = roles.ToList();
+
+            return userResponse;
+        }
+
+        public override async Task<PagedResult<UserResponse>> GetAsync(UserSearchModel search)
+        {
+            IQueryable<User> query = _context.Set<User>().AsNoTracking();
+            query = AddInclude(query);
+            query = ApplyFilter(query, search);
+
+            int? totalCount = null;
+            if (search.IncludeTotalCount)
+            {
+                totalCount = await query.CountAsync();
+            }
+
+            if (!search.RetrieveAll)
+            {
+                if (search.Page.HasValue)
+                    query = query.Skip(search.Page.Value * search.PageSize ?? 10);
+                if (search.PageSize.HasValue)
+                    query = query.Take(search.PageSize.Value);
+            }
+
+            var users = await query.ToListAsync();
+
+            // Map users and add roles
+            var userResponses = new List<UserResponse>();
+            foreach (var user in users)
+            {
+                var userResponse = await AddRolesToUserResponse(user);
+                userResponses.Add(userResponse);
+            }
+
+            return new PagedResult<UserResponse>
+            {
+                Items = userResponses,
+                TotalCount = totalCount
+            };
         }
     }
 }

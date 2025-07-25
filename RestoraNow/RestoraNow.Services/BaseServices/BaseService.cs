@@ -3,11 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using RestoraNow.Model.Base;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Interfaces.Base;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 namespace RestoraNow.Services.BaseServices
 {
     public abstract class BaseService<TModel, TSearch, TEntity> : IService<TModel, TSearch>

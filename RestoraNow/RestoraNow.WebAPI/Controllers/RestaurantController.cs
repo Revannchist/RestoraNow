@@ -7,7 +7,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 namespace RestoraNow.WebAPI.Controllers
 {
     public class RestaurantController
-        : BaseCRUDController<RestaurantResponse, RestaurantSearchModel, RestaurantRequest>
+        : BaseCRUDController<RestaurantResponse, RestaurantSearchModel, RestaurantRequest, RestaurantRequest>
     {
         public RestaurantController(IRestaurantService service)
             : base(service)

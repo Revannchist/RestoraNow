@@ -7,7 +7,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 namespace RestoraNow.WebAPI.Controllers
 {
     public class OrderController
-        : BaseCRUDController<OrderResponse, OrderSearchModel, OrderRequest>
+        : BaseCRUDController<OrderResponse, OrderSearchModel, OrderRequest, OrderRequest>
     {
         public OrderController(IOrderService service)
             : base(service)

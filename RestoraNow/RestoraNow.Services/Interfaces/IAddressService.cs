@@ -7,7 +7,7 @@ using RestoraNow.Services.Interfaces.Base;
 namespace RestoraNow.Services.Interfaces
 {
     public interface IAddressService
-        : ICRUDService<AddressResponse, AddressSearchModel, AddressRequest>
+        : ICRUDService<AddressResponse, AddressSearchModel, AddressRequest, AddressRequest>
     {
     }
 }

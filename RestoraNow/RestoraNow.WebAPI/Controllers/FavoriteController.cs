@@ -7,7 +7,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 namespace RestoraNow.WebAPI.Controllers
 {
     public class FavoriteController
-        : BaseCRUDController<FavoriteResponse, FavoriteSearchModel, FavoriteRequest>
+        : BaseCRUDController<FavoriteResponse, FavoriteSearchModel, FavoriteRequest, FavoriteRequest>
     {
         public FavoriteController(IFavoriteService service)
             : base(service) { }

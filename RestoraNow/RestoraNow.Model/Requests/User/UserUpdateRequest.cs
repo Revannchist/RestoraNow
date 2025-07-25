@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
-namespace RestoraNow.Model.Requests
+namespace RestoraNow.Model.Requests.User
 {
     public class UserUpdateRequest
     {

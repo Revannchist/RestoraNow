@@ -5,7 +5,7 @@ using RestoraNow.Services.Interfaces.Base;
 
 namespace RestoraNow.Services.Interfaces
 {
-    public interface IOrderService : ICRUDService<OrderResponse, OrderSearchModel, OrderRequest>
+    public interface IOrderService : ICRUDService<OrderResponse, OrderSearchModel, OrderRequest, OrderRequest>
     {
     }
 }

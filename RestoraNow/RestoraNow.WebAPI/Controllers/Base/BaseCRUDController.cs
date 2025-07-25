@@ -51,12 +51,4 @@ namespace RestoraNow.WebAPI.Controllers.Base
         }
     }
 
-    // Backward compatible CRUD Controller that uses the same type for create and update
-    public class BaseCRUDController<TModel, TSearch, TCreateUpdate> : BaseCRUDController<TModel, TSearch, TCreateUpdate, TCreateUpdate>
-        where TSearch : BaseSearchObject, new()
-    {
-        public BaseCRUDController(ICRUDService<TModel, TSearch, TCreateUpdate> service) : base(service)
-        {
-        }
-    }
 }

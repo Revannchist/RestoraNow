@@ -9,7 +9,7 @@ namespace RestoraNow.WebAPI.Helpers
 
         public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            var stringValue = reader.GetString();
+            var stringValue = reader.GetString(); //ovo treba popravit
             if (TimeSpan.TryParseExact(stringValue, Format, null, out var result))
             {
                 return result;

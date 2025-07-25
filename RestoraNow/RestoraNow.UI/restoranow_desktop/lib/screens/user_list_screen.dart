@@ -232,110 +232,178 @@ class UserListScreen extends StatelessWidget {
   }
 
   void _showCreateUserDialog(BuildContext context) {
+    final _formKey = GlobalKey<FormState>();
     final firstNameController = TextEditingController();
     final lastNameController = TextEditingController();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     final phoneNumberController = TextEditingController();
     bool isActive = true;
+    bool obscurePassword = true;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Create User'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: firstNameController,
-                  decoration: const InputDecoration(labelText: 'First Name'),
-                ),
-                const SizedBox(height: 12),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Create User'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: firstNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'First Name',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'First name is required.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
 
-                TextField(
-                  controller: lastNameController,
-                  decoration: const InputDecoration(labelText: 'Last Name'),
-                ),
-                const SizedBox(height: 12),
+                      TextFormField(
+                        controller: lastNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Last Name',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Last name is required.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
 
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 12),
+                      TextFormField(
+                        controller: emailController,
+                        decoration: const InputDecoration(labelText: 'Email'),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Email is required.';
+                          }
+                          final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                          if (!emailRegex.hasMatch(value)) {
+                            return 'Enter a valid email address.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
 
-                TextField(
-                  controller: passwordController,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 12),
+                      TextFormField(
+                        controller: passwordController,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                obscurePassword = !obscurePassword;
+                              });
+                            },
+                          ),
+                        ),
+                        obscureText: obscurePassword,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Password is required.';
+                          }
+                          if (value.length < 6) {
+                            return 'Password must be at least 6 characters.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
 
-                TextField(
-                  controller: phoneNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number (Optional)',
+                      TextFormField(
+                        controller: phoneNumberController,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone Number',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Phone number is required.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      CheckboxListTile(
+                        title: const Text('Is Active'),
+                        value: isActive,
+                        onChanged: (value) {
+                          setState(() {
+                            isActive = value ?? true;
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    if (!_formKey.currentState!.validate()) return;
 
-                CheckboxListTile(
-                  title: const Text('Is Active'),
-                  value: isActive,
-                  onChanged: (value) {
-                    isActive = value ?? true;
-                    (context as Element).markNeedsBuild();
+                    final user = UserModel(
+                      id: 0,
+                      firstName: firstNameController.text.trim(),
+                      lastName: lastNameController.text.trim(),
+                      email: emailController.text.trim(),
+                      isActive: isActive,
+                      createdAt: DateTime.now(),
+                      roles: [],
+                      imageUrls: [],
+                      phoneNumber: phoneNumberController.text.trim(),
+                    );
+
+                    await context.read<UserProvider>().createUser(
+                      user,
+                      passwordController.text.trim(),
+                    );
+
+                    if (context.read<UserProvider>().error != null) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text("Error"),
+                          content: Text(context.read<UserProvider>().error!),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("OK"),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      Navigator.pop(context);
+                    }
                   },
+                  child: const Text('Create'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (firstNameController.text.isEmpty ||
-                    lastNameController.text.isEmpty ||
-                    emailController.text.isEmpty ||
-                    passwordController.text.length < 6) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Please fill all required fields. Password must be at least 6 characters.',
-                      ),
-                    ),
-                  );
-                  return;
-                }
-
-                final user = UserModel(
-                  id: 0,
-                  firstName: firstNameController.text,
-                  lastName: lastNameController.text,
-                  email: emailController.text,
-                  isActive: isActive,
-                  createdAt: DateTime.now(),
-                  roles: [],
-                  imageUrls: [],
-                  phoneNumber: phoneNumberController.text.isEmpty
-                      ? null
-                      : phoneNumberController.text,
-                );
-
-                await context.read<UserProvider>().createUser(
-                  user,
-                  passwordController.text,
-                );
-                Navigator.pop(context);
-              },
-              child: const Text('Create'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -346,137 +414,131 @@ class UserListScreen extends StatelessWidget {
     final lastNameController = TextEditingController(text: user.lastName);
     final emailController = TextEditingController(text: user.email);
     final passwordController = TextEditingController();
-    final phoneNumberController = TextEditingController(text: user.phoneNumber);
+    final phoneNumberController = TextEditingController(
+      text: user.phoneNumber ?? "",
+    );
     bool isActive = user.isActive;
-
-    // Default to first role or null
+    bool obscurePassword = true;
     String? selectedRole = user.roles.isNotEmpty ? user.roles.first : null;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Update User'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: firstNameController,
-                  decoration: const InputDecoration(labelText: 'First Name'),
-                ),
-                const SizedBox(height: 12),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Update User'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: firstNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'First Name',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
-                TextField(
-                  controller: lastNameController,
-                  decoration: const InputDecoration(labelText: 'Last Name'),
-                ),
-                const SizedBox(height: 12),
+                    TextField(
+                      controller: lastNameController,
+                      decoration: const InputDecoration(labelText: 'Last Name'),
+                    ),
+                    const SizedBox(height: 12),
 
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 12),
+                    TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(labelText: 'Email'),
+                    ),
+                    const SizedBox(height: 12),
 
-                TextField(
-                  controller: passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'New Password (optional)',
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 12),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'New Password (optional)',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              obscurePassword = !obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
-                TextField(
-                  controller: phoneNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number (Optional)',
-                  ),
-                ),
-                const SizedBox(height: 12),
+                    TextField(
+                      controller: phoneNumberController,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
-                DropdownButtonFormField<String>(
-                  value: selectedRole,
-                  items: availableRoles
-                      .map(
-                        (role) =>
-                            DropdownMenuItem(value: role, child: Text(role)),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    selectedRole = value;
+                    DropdownButtonFormField<String>(
+                      value: selectedRole,
+                      items: availableRoles
+                          .map(
+                            (role) => DropdownMenuItem(
+                              value: role,
+                              child: Text(role),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedRole = value;
+                        });
+                      },
+                      decoration: const InputDecoration(labelText: 'Role'),
+                    ),
+                    const SizedBox(height: 12),
+
+                    CheckboxListTile(
+                      title: const Text('Is Active'),
+                      value: isActive,
+                      onChanged: (value) {
+                        setState(() {
+                          isActive = value ?? true;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final updatedUser = user.copyWith(
+                      firstName: firstNameController.text,
+                      lastName: lastNameController.text,
+                      email: emailController.text,
+                      phoneNumber: phoneNumberController.text,
+                      isActive: isActive,
+                      password: passwordController.text.isEmpty
+                          ? null
+                          : passwordController.text,
+                      roles: [if (selectedRole != null) selectedRole!],
+                    );
+
+                    await context.read<UserProvider>().updateUser(updatedUser);
+                    Navigator.pop(context);
                   },
-                  decoration: const InputDecoration(labelText: 'Role'),
-                ),
-                const SizedBox(height: 12),
-
-                CheckboxListTile(
-                  title: const Text('Is Active'),
-                  value: isActive,
-                  onChanged: (value) {
-                    isActive = value ?? true;
-                    (context as Element).markNeedsBuild();
-                  },
+                  child: const Text('Update'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (firstNameController.text.isEmpty ||
-                    lastNameController.text.isEmpty ||
-                    emailController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please fill all required fields.'),
-                    ),
-                  );
-                  return;
-                }
-
-                if (passwordController.text.isNotEmpty &&
-                    passwordController.text.length < 6) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Password must be at least 6 characters.'),
-                    ),
-                  );
-                  return;
-                }
-
-                if (selectedRole == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select a role.')),
-                  );
-                  return;
-                }
-
-                final updatedUser = user.copyWith(
-                  firstName: firstNameController.text,
-                  lastName: lastNameController.text,
-                  email: emailController.text,
-                  phoneNumber: phoneNumberController.text.isEmpty
-                      ? null
-                      : phoneNumberController.text,
-                  isActive: isActive,
-                  password: passwordController.text.isEmpty
-                      ? null
-                      : passwordController.text,
-                  roles: [selectedRole!],
-                );
-
-                await context.read<UserProvider>().updateUser(updatedUser);
-                Navigator.pop(context);
-              },
-              child: const Text('Update'),
-            ),
-          ],
+            );
+          },
         );
       },
     );

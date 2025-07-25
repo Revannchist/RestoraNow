@@ -10,6 +10,6 @@ namespace RestoraNow.Model.Responses
         public string Url { get; set; } = null!;
         public string? Description { get; set; }
         public int UserId { get; set; }
-        public string? Username { get; set; }
+        //public string? Username { get; set; }
     }
 }

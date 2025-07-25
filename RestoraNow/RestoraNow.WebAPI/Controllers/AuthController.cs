@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
-using RestoraNow.Model.Requests;
 using RestoraNow.Services.Entities;
 using System;
 using System.Collections.Generic;
@@ -9,6 +8,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using RestoraNow.Model.Requests.User;
 
 namespace RestoraNow.WebAPI.Controllers
 {

@@ -6,7 +6,7 @@ using RestoraNow.Services.Interfaces.Base;
 namespace RestoraNow.Services.Interfaces
 {
     public interface IPaymentService
-        : ICRUDService<PaymentResponse, PaymentSearchModel, PaymentRequest>
+        : ICRUDService<PaymentResponse, PaymentSearchModel, PaymentRequest, PaymentRequest>
     {
     }
 }

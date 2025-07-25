@@ -6,7 +6,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 
 namespace RestoraNow.WebAPI.Controllers
 {
-    public class TableController : BaseCRUDController<TableResponse, TableSearchModel, TableCreateRequest>
+    public class TableController : BaseCRUDController<TableResponse, TableSearchModel, TableRequest, TableRequest>
     {
         public TableController(ITableService service) : base(service)
         {

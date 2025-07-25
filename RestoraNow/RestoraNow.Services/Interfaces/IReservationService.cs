@@ -6,7 +6,7 @@ using RestoraNow.Services.Interfaces.Base;
 namespace RestoraNow.Services.Interfaces
 {
     public interface IReservationService
-        : ICRUDService<ReservationResponse, ReservationSearchModel, ReservationRequest>
+        : ICRUDService<ReservationResponse, ReservationSearchModel, ReservationRequest, ReservationRequest>
     {
     }
 }

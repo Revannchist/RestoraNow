@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace RestoraNow.Services.Interfaces
 {
-    public interface IUserImageService : ICRUDService<UserImageResponse, UserImageSearchModel, UserImageRequest>
+    public interface IUserImageService : ICRUDService<UserImageResponse, UserImageSearchModel, UserImageRequest, UserImageRequest>
     {
     }
 }

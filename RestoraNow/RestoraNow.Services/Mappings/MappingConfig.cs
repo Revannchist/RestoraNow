@@ -36,9 +36,10 @@ namespace RestoraNow.Services.Mappings
 
             //Reservation
             TypeAdapterConfig<Reservation, ReservationResponse>.NewConfig()
-                .Map<string,string>(dest => dest.UserName, src => src.User != null ? src.User.FirstName + " " + src.User.LastName : "Unknown User")
-                .Map<string, string>(dest => dest.TableNumber, src => src.Table != null ? src.Table.TableNumber.ToString() : "Unknown Table")
-                .Map(dest => dest.ReservationTime, src => src.ReservationTime.ToString(@"hh\:mm")); // Format TimeSpan as HH:mm
+                .Map(dest => dest.UserName, src => src.User != null ? src.User.FirstName + " " + src.User.LastName : "Unknown User")
+                .Map(dest => dest.TableNumber, src => src.Table != null ? src.Table.TableNumber.ToString() : "Unknown Table")
+                .Map(dest => dest.ReservationTime, src => src.ReservationTime.ToString(@"hh\:mm"));
+
 
 
 

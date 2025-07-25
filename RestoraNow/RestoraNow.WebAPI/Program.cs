@@ -9,6 +9,7 @@ using RestoraNow.Services.Entities;
 using RestoraNow.Services.Implementations;
 using RestoraNow.Services.Interfaces;
 using RestoraNow.WebAPI.Helpers;
+using RestoraNow.WebAPI.Middleware;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -132,6 +133,8 @@ namespace RestoraNow.WebAPI
             //Docker is treated as Production, so for the swagger to show up I disabled the IsDevelopment line.
             //Later when I make the frontend I'll enable it
 
+
+
             //if (app.Environment.IsDevelopment())
             //{
                 app.UseSwagger();
@@ -140,6 +143,8 @@ namespace RestoraNow.WebAPI
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            app.UseMiddleware<GlobalExceptionMiddleware>(); //Maybe it can stay here we'll see if it makes problems
 
             //app.UseHttpsRedirection();
             app.MapControllers();

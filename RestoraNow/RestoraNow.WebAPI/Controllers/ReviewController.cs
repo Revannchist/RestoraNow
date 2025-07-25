@@ -6,7 +6,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 
 namespace RestoraNow.WebAPI.Controllers
 {
-    public class ReviewController : BaseCRUDController<ReviewResponse, ReviewSearchModel, ReviewRequest>
+    public class ReviewController : BaseCRUDController<ReviewResponse, ReviewSearchModel, ReviewRequest, ReviewRequest>
     {
         public ReviewController(IReviewService service) : base(service)
         {

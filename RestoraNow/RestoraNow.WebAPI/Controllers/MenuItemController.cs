@@ -7,7 +7,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 namespace RestoraNow.WebAPI.Controllers
 {
     public class MenuItemController
-        : BaseCRUDController<MenuItemResponse, MenuItemSearchModel, MenuItemRequest>
+        : BaseCRUDController<MenuItemResponse, MenuItemSearchModel, MenuItemRequest, MenuItemRequest>
     {
         public MenuItemController(IMenuItemService service)
             : base(service)

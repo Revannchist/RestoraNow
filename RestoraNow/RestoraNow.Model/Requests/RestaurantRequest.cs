@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace RestoraNow.Model.Requests
 {
@@ -21,6 +18,7 @@ namespace RestoraNow.Model.Requests
         [MaxLength(100)]
         public string? Email { get; set; }
 
+        [MaxLength(500)]
         public string? Description { get; set; }
 
         public bool IsActive { get; set; } = true;

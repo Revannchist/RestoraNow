@@ -6,7 +6,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 
 namespace RestoraNow.WebAPI.Controllers
 {
-    public class ReservationController : BaseCRUDController<ReservationResponse, ReservationSearchModel, ReservationRequest>
+    public class ReservationController : BaseCRUDController<ReservationResponse, ReservationSearchModel, ReservationRequest, ReservationRequest>
     {
         public ReservationController(IReservationService service) : base(service) { }
     }
