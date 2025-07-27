@@ -66,8 +66,21 @@ class MainLayout extends StatelessWidget {
           actions: [
             IconButton(
               icon: const Icon(Icons.account_circle, size: 28),
+              tooltip: 'Profile',
               onPressed: () {
                 print("Profile clicked");
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout, size: 26),
+              tooltip: 'Logout',
+              onPressed: () {
+                // Clear auth and go back to login screen
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (route) => false,
+                );
               },
             ),
           ],

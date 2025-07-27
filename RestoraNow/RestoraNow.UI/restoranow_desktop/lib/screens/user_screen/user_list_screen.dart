@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../layouts/main_layout.dart';
-import '../models/user_model.dart';
-import '../providers/user_provider.dart';
-import '../theme/theme.dart';
+import '../../layouts/main_layout.dart';
+import '../../models/user_model.dart';
+import '../../providers/user_provider.dart';
+import '../../theme/theme.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../widgets/password_strength_meter.dart';
 
-class UserListScreen extends StatelessWidget {
+class UserListScreen extends StatefulWidget {
   const UserListScreen({Key? key}) : super(key: key);
 
   static const List<String> availableRoles = [
@@ -14,6 +17,23 @@ class UserListScreen extends StatelessWidget {
     'Staff',
     'Customer',
   ];
+
+  @override
+  State<UserListScreen> createState() => _UserListScreenState();
+}
+
+class _UserListScreenState extends State<UserListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final provider = Provider.of<UserProvider>(context, listen: false);
+    provider.fetchUsers(page: 1);
+  }
+
+  void _goToPage(int page) {
+    final provider = Provider.of<UserProvider>(context, listen: false);
+    provider.setPage(page);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +53,8 @@ class UserListScreen extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
+                  horizontal: 16,
+                  vertical: 8,
                 ),
                 child: Align(
                   alignment: Alignment.centerRight,
@@ -46,8 +66,8 @@ class UserListScreen extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 4.0,
+                  horizontal: 16,
+                  vertical: 4,
                 ),
                 child: Row(
                   children: const [
@@ -95,12 +115,12 @@ class UserListScreen extends StatelessWidget {
                     final user = provider.users[index];
                     return Container(
                       margin: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 4.0,
+                        horizontal: 16,
+                        vertical: 4,
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12.0,
-                        vertical: 8.0,
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardColor,
@@ -112,7 +132,6 @@ class UserListScreen extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Employee & role
                           Expanded(
                             flex: 2,
                             child: Row(
@@ -147,7 +166,6 @@ class UserListScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          // Contact
                           Expanded(
                             flex: 2,
                             child: Row(
@@ -167,7 +185,6 @@ class UserListScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          // Hire Date
                           Expanded(
                             child: Row(
                               children: [
@@ -181,11 +198,9 @@ class UserListScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          // Status
                           Expanded(
                             child: AppTheme.statusChip(isActive: user.isActive),
                           ),
-                          // Actions
                           SizedBox(
                             width: 80,
                             child: Center(
@@ -220,6 +235,28 @@ class UserListScreen extends StatelessWidget {
                   },
                 ),
               ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: provider.currentPage > 1
+                        ? () => _goToPage(provider.currentPage - 1)
+                        : null,
+                  ),
+                  Text(
+                    'Page ${provider.currentPage} of ${provider.totalPages}',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward),
+                    onPressed: provider.currentPage < provider.totalPages
+                        ? () => _goToPage(provider.currentPage + 1)
+                        : null,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
             ],
           );
         },
@@ -238,19 +275,49 @@ class UserListScreen extends StatelessWidget {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     final phoneNumberController = TextEditingController();
+
+    final emailFocusNode = FocusNode();
+    final phoneFocusNode = FocusNode();
+    final passwordFocusNode = FocusNode();
+
     bool isActive = true;
     bool obscurePassword = true;
+    bool isFormValid = false;
+    bool phoneTouched = false;
+    bool passwordTouched = false;
+
+    final fieldErrors = <String, String?>{};
+
+    void updateFormValidity(StateSetter setState) {
+      setState(() {
+        isFormValid = _formKey.currentState?.validate() ?? false;
+      });
+    }
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            phoneFocusNode.addListener(() {
+              if (!phoneFocusNode.hasFocus) {
+                setState(() => phoneTouched = true);
+                _formKey.currentState?.validate();
+              }
+            });
+            passwordFocusNode.addListener(() {
+              if (!passwordFocusNode.hasFocus) {
+                setState(() => passwordTouched = true);
+                _formKey.currentState?.validate();
+              }
+            });
+
             return AlertDialog(
               title: const Text('Create User'),
               content: SingleChildScrollView(
                 child: Form(
                   key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -259,47 +326,49 @@ class UserListScreen extends StatelessWidget {
                         decoration: const InputDecoration(
                           labelText: 'First Name',
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'First name is required.';
-                          }
-                          return null;
-                        },
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'First name is required.'
+                            : null,
+                        onChanged: (_) => updateFormValidity(setState),
                       ),
                       const SizedBox(height: 12),
-
                       TextFormField(
                         controller: lastNameController,
                         decoration: const InputDecoration(
                           labelText: 'Last Name',
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Last name is required.';
-                          }
-                          return null;
-                        },
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Last name is required.'
+                            : null,
+                        onChanged: (_) => updateFormValidity(setState),
                       ),
                       const SizedBox(height: 12),
-
                       TextFormField(
                         controller: emailController,
-                        decoration: const InputDecoration(labelText: 'Email'),
+                        focusNode: emailFocusNode,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          errorText: fieldErrors['email'],
+                        ),
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
+                          if (fieldErrors['email'] != null)
+                            return fieldErrors['email'];
+                          if (value == null || value.trim().isEmpty)
                             return 'Email is required.';
-                          }
                           final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                          if (!emailRegex.hasMatch(value)) {
+                          if (!emailRegex.hasMatch(value))
                             return 'Enter a valid email address.';
-                          }
                           return null;
                         },
+                        onChanged: (_) => updateFormValidity(setState),
                       ),
                       const SizedBox(height: 12),
-
                       TextFormField(
                         controller: passwordController,
+                        focusNode: passwordFocusNode,
+                        obscureText: obscurePassword,
                         decoration: InputDecoration(
                           labelText: 'Password',
                           suffixIcon: IconButton(
@@ -308,40 +377,51 @@ class UserListScreen extends StatelessWidget {
                                   ? Icons.visibility_off
                                   : Icons.visibility,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                obscurePassword = !obscurePassword;
-                              });
-                            },
+                            onPressed: () => setState(
+                              () => obscurePassword = !obscurePassword,
+                            ),
                           ),
                         ),
-                        obscureText: obscurePassword,
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
+                          if (!passwordTouched) return null;
+                          if (value == null || value.trim().isEmpty)
                             return 'Password is required.';
-                          }
-                          if (value.length < 6) {
+                          if (value.length < 6)
                             return 'Password must be at least 6 characters.';
-                          }
+                          if (!RegExp(r'\d').hasMatch(value))
+                            return 'Password must contain at least one number.';
                           return null;
                         },
+                        onChanged: (_) => updateFormValidity(setState),
                       ),
+                      if (passwordController.text.isNotEmpty)
+                        PasswordStrengthMeter(
+                          password: passwordController.text,
+                        ),
                       const SizedBox(height: 12),
-
                       TextFormField(
                         controller: phoneNumberController,
-                        decoration: const InputDecoration(
+                        focusNode: phoneFocusNode,
+                        decoration: InputDecoration(
                           labelText: 'Phone Number',
+                          errorText: fieldErrors['phone'],
                         ),
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
+                          if (!phoneTouched) return null;
+                          if (fieldErrors['phone'] != null)
+                            return fieldErrors['phone'];
+                          if (value == null || value.trim().isEmpty)
                             return 'Phone number is required.';
-                          }
+                          final phoneRegex = RegExp(
+                            r'^(?:\+?\d{7,15}|0\d{6,14})$',
+                          );
+                          if (!phoneRegex.hasMatch(value.trim()))
+                            return 'Enter a valid phone number (7–15 digits).';
                           return null;
                         },
+                        onChanged: (_) => updateFormValidity(setState),
                       ),
                       const SizedBox(height: 12),
-
                       CheckboxListTile(
                         title: const Text('Is Active'),
                         value: isActive,
@@ -349,8 +429,17 @@ class UserListScreen extends StatelessWidget {
                           setState(() {
                             isActive = value ?? true;
                           });
+                          updateFormValidity(setState);
                         },
                       ),
+                      if (fieldErrors['general'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            fieldErrors['general']!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -361,44 +450,66 @@ class UserListScreen extends StatelessWidget {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: () async {
-                    if (!_formKey.currentState!.validate()) return;
+                  onPressed: isFormValid
+                      ? () async {
+                          final user = UserModel(
+                            id: 0,
+                            firstName: firstNameController.text.trim(),
+                            lastName: lastNameController.text.trim(),
+                            email: emailController.text.trim(),
+                            isActive: isActive,
+                            createdAt: DateTime.now(),
+                            roles: [],
+                            imageUrls: [],
+                            phoneNumber: phoneNumberController.text.trim(),
+                          );
 
-                    final user = UserModel(
-                      id: 0,
-                      firstName: firstNameController.text.trim(),
-                      lastName: lastNameController.text.trim(),
-                      email: emailController.text.trim(),
-                      isActive: isActive,
-                      createdAt: DateTime.now(),
-                      roles: [],
-                      imageUrls: [],
-                      phoneNumber: phoneNumberController.text.trim(),
-                    );
+                          setState(() => fieldErrors.clear());
 
-                    await context.read<UserProvider>().createUser(
-                      user,
-                      passwordController.text.trim(),
-                    );
-
-                    if (context.read<UserProvider>().error != null) {
-                      showDialog(
-                        context: context,
-                        builder: (_) => AlertDialog(
-                          title: const Text("Error"),
-                          content: Text(context.read<UserProvider>().error!),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("OK"),
-                            ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      Navigator.pop(context);
-                    }
-                  },
+                          try {
+                            await context.read<UserProvider>().createUser(
+                              user,
+                              passwordController.text.trim(),
+                            );
+                            Navigator.pop(context);
+                          } on http.Response catch (response) {
+                            try {
+                              final errorData = jsonDecode(response.body);
+                              if (errorData['errors'] is Map) {
+                                final Map<String, dynamic> errors =
+                                    errorData['errors'];
+                                setState(() {
+                                  fieldErrors.clear();
+                                  errors.forEach((key, value) {
+                                    if (value is List && value.isNotEmpty) {
+                                      final lowerKey = key.toLowerCase();
+                                      if (lowerKey.contains("email")) {
+                                        fieldErrors['email'] = value.first;
+                                      } else if (lowerKey.contains("phone")) {
+                                        fieldErrors['phone'] = value.first;
+                                      } else {
+                                        fieldErrors['general'] = value.first;
+                                      }
+                                    }
+                                  });
+                                });
+                                _formKey.currentState!.validate();
+                              }
+                            } catch (_) {
+                              setState(() {
+                                fieldErrors['general'] =
+                                    'Unexpected error occurred.';
+                              });
+                              _formKey.currentState!.validate();
+                            }
+                          } catch (e) {
+                            setState(() {
+                              fieldErrors['general'] = e.toString();
+                            });
+                            _formKey.currentState!.validate();
+                          }
+                        }
+                      : null,
                   child: const Text('Create'),
                 ),
               ],
@@ -483,7 +594,7 @@ class UserListScreen extends StatelessWidget {
 
                     DropdownButtonFormField<String>(
                       value: selectedRole,
-                      items: availableRoles
+                      items: UserListScreen.availableRoles
                           .map(
                             (role) => DropdownMenuItem(
                               value: role,

@@ -9,6 +9,7 @@ using RestoraNow.Services.BaseServices;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Entities;
 using RestoraNow.Services.Interfaces;
+using System.ComponentModel.DataAnnotations;
 
 namespace RestoraNow.Services.Implementations
 {
@@ -59,16 +60,19 @@ namespace RestoraNow.Services.Implementations
             // Validate: Email already in use
             var existingByEmail = await _userManager.FindByEmailAsync(request.Email);
             if (existingByEmail != null)
-                throw new Exception("A user with the given email already exists."); //This response message is not triggering
+                throw new ValidationException("A user with the given email already exists.");
 
             // Validate: Phone number already in use
             var existingByPhone = await _context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber);
             if (existingByPhone != null)
-                throw new Exception("A user with the given phone number already exists.");  //same thing with phone number
-                                                                                           // it seems to crash with error 500, 
-            // (Optional) Validate: roles exist
+                throw new ValidationException("A user with the given phone number already exists.");
+
+            //if (!Regex.IsMatch(request.PhoneNumber, @"^\+?[0-9]{7,15}$"))
+            //    throw new ValidationException("Phone number must be between 7 and 15 digits.");
+
+            // Validate: Roles exist
             if (request.Roles != null && request.Roles.Any())
             {
                 var roleErrors = new List<string>();
@@ -81,9 +85,10 @@ namespace RestoraNow.Services.Implementations
                 }
 
                 if (roleErrors.Any())
-                    throw new Exception($"Invalid roles: {string.Join(", ", roleErrors)}");
+                    throw new ValidationException($"Invalid roles: {string.Join(", ", roleErrors)}");
             }
 
+            // Create user
             var user = new User
             {
                 FirstName = request.FirstName,
@@ -98,34 +103,35 @@ namespace RestoraNow.Services.Implementations
             var result = await _userManager.CreateAsync(user, request.Password);
             if (!result.Succeeded)
             {
-                throw new Exception($"User creation failed: {string.Join(", ", result.Errors.Select(e => e.Description))}"); //same here?
+                _context.ChangeTracker.Clear(); // 💥 Clear EF tracking on failure
+                throw new ValidationException($"User creation failed: {string.Join(", ", result.Errors.Select(e => e.Description))}");
             }
 
-            // Assign roles from request if specified
+            // Assign roles
+            IdentityResult roleResult;
             if (request.Roles != null && request.Roles.Any())
             {
-                var roleResult = await _userManager.AddToRolesAsync(user, request.Roles);
-                if (!roleResult.Succeeded)
-                {
-                    throw new Exception($"Failed to assign roles: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
-                }
+                roleResult = await _userManager.AddToRolesAsync(user, request.Roles);
             }
             else
             {
-                var defaultRoleResult = await _userManager.AddToRoleAsync(user, "Customer");
-                if (!defaultRoleResult.Succeeded)
-                {
-                    throw new Exception($"Failed to assign default role 'Customer': {string.Join(", ", defaultRoleResult.Errors.Select(e => e.Description))}");
-                }
+                roleResult = await _userManager.AddToRoleAsync(user, "Customer");
             }
 
+            if (!roleResult.Succeeded)
+            {
+                _context.ChangeTracker.Clear(); // 💥 Clear tracking again if roles failed
+                throw new ValidationException($"Failed to assign roles: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
+            }
 
+            // Map and return response
             var userResponse = _mapper.Map<UserResponse>(user);
             var roles = await _userManager.GetRolesAsync(user);
             userResponse.Roles = roles.ToList();
 
             return userResponse;
         }
+
 
         public override async Task<UserResponse?> UpdateAsync(int id, UserUpdateRequest request)
         {
@@ -197,6 +203,7 @@ namespace RestoraNow.Services.Implementations
             return userResponse;
         }
 
+
         public override async Task<UserResponse?> GetByIdAsync(int id)
         {
             var user = await _userManager.FindByIdAsync(id.ToString());
@@ -251,5 +258,6 @@ namespace RestoraNow.Services.Implementations
                 TotalCount = totalCount
             };
         }
+
     }
 }

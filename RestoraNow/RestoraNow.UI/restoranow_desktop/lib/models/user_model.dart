@@ -27,7 +27,6 @@ class UserModel {
     this.password,
   });
 
-  // ✅ FIX: Add missing parameters here
   UserModel copyWith({
     int? id,
     String? firstName,

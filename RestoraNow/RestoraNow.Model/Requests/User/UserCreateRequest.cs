@@ -14,7 +14,7 @@ namespace RestoraNow.Model.Requests.User
         public string LastName { get; set; }
 
         [Required]
-        [EmailAddress]
+        [EmailAddress(ErrorMessage = "Please enter a valid email.")]
         [MaxLength(100)]
         public string Email { get; set; }
 

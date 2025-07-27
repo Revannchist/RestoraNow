@@ -14,17 +14,46 @@ namespace RestoraNow.WebAPI.Middleware
             _logger = logger;
         }
 
+
         public async Task InvokeAsync(HttpContext context)
         {
             try
             {
                 await _next(context);
             }
+
+            //catch (ValidationException ex)
+            //{
+            //    _logger.LogWarning(ex, "Validation failed");
+            //    await WriteErrorResponse(context, 400, ex.Message);
+            //}
+
             catch (ValidationException ex)
             {
-                // Let [ApiController] handle it as 400 Bad Request
-                throw;
+                context.Response.StatusCode = 400;
+                context.Response.ContentType = "application/json";
+
+                var response = new
+                {
+                    errors = new Dictionary<string, string[]>
+                    {
+                        ["email"] = ex.Message.Contains("email", StringComparison.OrdinalIgnoreCase)
+                            ? new[] { ex.Message }
+                            : Array.Empty<string>(),
+
+                        ["phone"] = ex.Message.Contains("phone", StringComparison.OrdinalIgnoreCase)
+                            ? new[] { ex.Message }
+                            : Array.Empty<string>(),
+
+                        ["general"] = (!ex.Message.Contains("email") && !ex.Message.Contains("phone"))
+                            ? new[] { ex.Message }
+                            : Array.Empty<string>(),
+                    }
+                };
+
+                await context.Response.WriteAsJsonAsync(response);
             }
+
 
             catch (KeyNotFoundException ex)
             {
