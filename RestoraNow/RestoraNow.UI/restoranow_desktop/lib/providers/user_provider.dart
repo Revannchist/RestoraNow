@@ -19,7 +19,7 @@ class UserProvider with ChangeNotifier {
 
   void setPage(int page) {
     _currentPage = page;
-    fetchUsers(page: page, pageSize: _pageSize);
+    fetchUsers();
   }
 
   List<UserModel> get users => _users;
@@ -31,8 +31,6 @@ class UserProvider with ChangeNotifier {
     String? name,
     String? username,
     bool? isActive,
-    int page = 1,
-    int pageSize = 10,
     String? sortBy,
     bool ascending = true,
   }) async {
@@ -47,8 +45,8 @@ class UserProvider with ChangeNotifier {
           if (username != null) 'Username': username,
           if (isActive != null) 'IsActive': isActive.toString(),
         },
-        page: page,
-        pageSize: pageSize,
+        page: _currentPage,
+        pageSize: _pageSize,
         sortBy: sortBy,
         ascending: ascending,
       );
@@ -129,5 +127,11 @@ class UserProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void setPageSize(int newSize) {
+    _pageSize = newSize;
+    _currentPage = 1;
+    fetchUsers(); // ✅ Don't pass pageSize manually
   }
 }

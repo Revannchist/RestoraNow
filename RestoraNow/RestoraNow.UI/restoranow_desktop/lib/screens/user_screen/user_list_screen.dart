@@ -7,6 +7,7 @@ import '../../theme/theme.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../widgets/password_strength_meter.dart';
+import '../../widgets/pagination_controls.dart';
 
 class UserListScreen extends StatefulWidget {
   const UserListScreen({Key? key}) : super(key: key);
@@ -27,12 +28,7 @@ class _UserListScreenState extends State<UserListScreen> {
   void initState() {
     super.initState();
     final provider = Provider.of<UserProvider>(context, listen: false);
-    provider.fetchUsers(page: 1);
-  }
-
-  void _goToPage(int page) {
-    final provider = Provider.of<UserProvider>(context, listen: false);
-    provider.setPage(page);
+    provider.fetchUsers();
   }
 
   @override
@@ -236,26 +232,18 @@ class _UserListScreenState extends State<UserListScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: provider.currentPage > 1
-                        ? () => _goToPage(provider.currentPage - 1)
-                        : null,
-                  ),
-                  Text(
-                    'Page ${provider.currentPage} of ${provider.totalPages}',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_forward),
-                    onPressed: provider.currentPage < provider.totalPages
-                        ? () => _goToPage(provider.currentPage + 1)
-                        : null,
-                  ),
-                ],
+              PaginationControls(
+                currentPage: provider.currentPage,
+                totalPages: provider.totalPages,
+                pageSize: provider.pageSize,
+                onPageChange: (page) {
+                  provider.setPage(page);
+                },
+                onPageSizeChange: (newSize) {
+                  provider.setPageSize(newSize);
+                },
               ),
+
               const SizedBox(height: 8),
             ],
           );

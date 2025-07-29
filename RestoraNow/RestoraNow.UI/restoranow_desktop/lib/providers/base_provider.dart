@@ -16,7 +16,6 @@ abstract class BaseProvider<T> with ChangeNotifier {
     );
   }
 
-  // Must be overridden by child
   T fromJson(Map<String, dynamic> json);
 
   Future<SearchResult<T>> get({
@@ -31,11 +30,14 @@ abstract class BaseProvider<T> with ChangeNotifier {
         if (filter != null) ...filter,
         'Page': '$page',
         'PageSize': '$pageSize',
-        'RetrieveAll': 'true', // <-- add this line
+        //'RetrieveAll': 'true', 
         if (sortBy != null) 'SortBy': sortBy,
         if (sortBy != null) 'Ascending': ascending.toString(),
       },
     );
+
+      debugPrint("→ [BaseProvider] Fetching page $page with pageSize $pageSize for $_endpoint");
+      debugPrint("→ [BaseProvider] Full request URL: $uri");
 
     final headers = _createHeaders();
     _logRequest("GET", uri);

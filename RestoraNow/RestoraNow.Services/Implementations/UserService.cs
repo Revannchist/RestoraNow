@@ -236,11 +236,14 @@ namespace RestoraNow.Services.Implementations
 
             if (!search.RetrieveAll)
             {
-                if (search.Page.HasValue)
-                    query = query.Skip(search.Page.Value * search.PageSize ?? 10);
-                if (search.PageSize.HasValue)
-                    query = query.Take(search.PageSize.Value);
+                int page = search.Page;
+                int pageSize = search.PageSize;
+
+                var skip = (page - 1) * pageSize;
+                query = query.Skip(skip).Take(pageSize);
             }
+
+
 
             var users = await query.ToListAsync();
 

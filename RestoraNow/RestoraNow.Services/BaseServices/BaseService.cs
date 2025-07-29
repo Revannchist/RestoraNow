@@ -29,23 +29,28 @@ namespace RestoraNow.Services.BaseServices
             IQueryable<TEntity> query = _context.Set<TEntity>().AsNoTracking();
 
             query = AddInclude(query);
-
             query = ApplyFilter(query, search);
+
             int? totalCount = null;
             if (search.IncludeTotalCount)
             {
                 totalCount = await query.CountAsync();
             }
+
             if (!search.RetrieveAll)
             {
-                if (search.Page.HasValue)
-                    query = query.Skip(search.Page.Value * search.PageSize ?? 10);
-                if (search.PageSize.HasValue)
-                    query = query.Take(search.PageSize.Value);
+                var skip = (search.Page - 1) * search.PageSize;
+                query = query.Skip(skip).Take(search.PageSize);
             }
+
             var list = await query.ToListAsync();
             var mappedList = _mapper.Map<List<TModel>>(list);
-            return new PagedResult<TModel> { Items = mappedList, TotalCount = totalCount };
+
+            return new PagedResult<TModel>
+            {
+                Items = mappedList,
+                TotalCount = totalCount
+            };
         }
 
         public virtual async Task<TModel?> GetByIdAsync(int id)
