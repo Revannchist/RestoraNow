@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 class AppTheme {
   static const Color primaryColor = Color(0xFF1A237E); // Indigo[900]
   static const Color secondaryColor = Color(0xFF673AB7); // DeepPurple
-  static const Color backgroundColor = Color(0xFFF9F5FC); // light purple-ish background
+  static const Color backgroundColor = Color(
+    0xFFF9F5FC,
+  ); // light purple-ish background
   static const Color cardColor = Color(0xFFE8EAF6); // Indigo[50]
   static const Color borderColor = Color(0xFFCED4DA);
 
@@ -15,13 +17,34 @@ class AppTheme {
 
   static ThemeData get lightTheme {
     return ThemeData(
+      splashFactory: InkRipple.splashFactory,
+      splashColor: primaryColor.withOpacity(0.1),
+      highlightColor: Colors.transparent,
+      hoverColor: primaryColor.withOpacity(0.05),
+
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+        },
+      ),
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+
       primaryColor: primaryColor,
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
       dialogBackgroundColor: Colors.white,
       dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        titleTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
+        titleTextStyle: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: primaryColor,
+        ),
         contentTextStyle: const TextStyle(fontSize: 14),
       ),
       textTheme: const TextTheme(
@@ -34,7 +57,9 @@ class AppTheme {
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ),
@@ -68,7 +93,10 @@ class AppTheme {
         isDense: true,
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         labelStyle: const TextStyle(fontSize: 14, color: Colors.grey),
       ),
       checkboxTheme: CheckboxThemeData(
@@ -78,12 +106,14 @@ class AppTheme {
       dropdownMenuTheme: DropdownMenuThemeData(
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
         ),
       ),
     );
   }
-  
 
   // Status Chip Style
   static Chip statusChip({required bool isActive}) {
@@ -103,10 +133,33 @@ class AppTheme {
 
   // Role Chip Style
   static Chip roleChip(String role) {
+    Color roleColor;
+
+    switch (role.toLowerCase()) {
+      case 'admin':
+        roleColor = Colors.redAccent;
+        break;
+      case 'manager':
+        roleColor = Colors.orangeAccent;
+        break;
+      case 'staff':
+        roleColor = Colors.blueAccent;
+        break;
+      case 'customer':
+        roleColor = Colors.green;
+        break;
+      default:
+        roleColor = Colors.grey;
+    }
+
     return Chip(
-      label: Text(role),
-      backgroundColor: Colors.grey.shade300,
-      padding: EdgeInsets.zero,
+      label: Text(
+        role,
+        style: TextStyle(color: roleColor, fontWeight: FontWeight.w500),
+      ),
+      backgroundColor: roleColor.withOpacity(0.15),
+      side: BorderSide(color: roleColor),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );

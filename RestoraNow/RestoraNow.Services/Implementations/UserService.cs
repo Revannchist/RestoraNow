@@ -40,6 +40,9 @@ namespace RestoraNow.Services.Implementations
             if (!string.IsNullOrWhiteSpace(search.Name))
                 query = query.Where(u => u.FirstName.Contains(search.Name) || u.LastName.Contains(search.Name));
 
+            if (!string.IsNullOrWhiteSpace(search.Username))
+                query = query.Where(u => u.UserName.Contains(search.Username));
+
             if (search.IsActive.HasValue)
                 query = query.Where(u => u.IsActive == search.IsActive.Value);
 
@@ -228,6 +231,36 @@ namespace RestoraNow.Services.Implementations
             query = AddInclude(query);
             query = ApplyFilter(query, search);
 
+            if (!string.IsNullOrWhiteSpace(search.SortBy))
+            {
+                var ascending = search.Ascending;
+                query = search.SortBy.ToLower() switch
+                {
+                    "email" or "username" => ascending
+                        ? query.OrderBy(u => u.UserName)
+                        : query.OrderByDescending(u => u.UserName),
+
+                    "firstname" => ascending
+                        ? query.OrderBy(u => u.FirstName)
+                        : query.OrderByDescending(u => u.FirstName),
+
+                    "lastname" => ascending
+                        ? query.OrderBy(u => u.LastName)
+                        : query.OrderByDescending(u => u.LastName),
+
+                    "createdat" => ascending
+                        ? query.OrderBy(u => u.CreatedAt)
+                        : query.OrderByDescending(u => u.CreatedAt),
+                    _ => query.OrderBy(u => u.Id)
+                };
+            }
+
+
+            else
+            {
+                query = query.OrderBy(u => u.Id); // default sort
+            }
+
             int? totalCount = null;
             if (search.IncludeTotalCount)
             {
@@ -242,8 +275,6 @@ namespace RestoraNow.Services.Implementations
                 var skip = (page - 1) * pageSize;
                 query = query.Skip(skip).Take(pageSize);
             }
-
-
 
             var users = await query.ToListAsync();
 

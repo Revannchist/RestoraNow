@@ -24,11 +24,41 @@ class UserListScreen extends StatefulWidget {
 }
 
 class _UserListScreenState extends State<UserListScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final FocusNode _nameFocus = FocusNode();
+  final FocusNode _usernameFocus = FocusNode();
+  bool? _selectedStatus;
+
   @override
   void initState() {
     super.initState();
     final provider = Provider.of<UserProvider>(context, listen: false);
     provider.fetchUsers();
+
+    _nameFocus.addListener(() {
+      if (!_nameFocus.hasFocus) _applyFilters();
+    });
+    _usernameFocus.addListener(() {
+      if (!_usernameFocus.hasFocus) _applyFilters();
+    });
+  }
+
+  void _applyFilters() {
+    Provider.of<UserProvider>(context, listen: false).setFilters(
+      name: _nameController.text,
+      username: _usernameController.text,
+      isActive: _selectedStatus,
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameFocus.dispose();
+    _usernameFocus.dispose();
+    _nameController.dispose();
+    _usernameController.dispose();
+    super.dispose();
   }
 
   @override
@@ -61,174 +91,201 @@ class _UserListScreenState extends State<UserListScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
-                  children: const [
+                  children: [
                     Expanded(
-                      flex: 2,
-                      child: Text(
-                        'Employee',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      child: TextField(
+                        controller: _nameController,
+                        focusNode: _nameFocus,
+                        decoration: const InputDecoration(labelText: 'Name'),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Expanded(
-                      flex: 2,
-                      child: Text(
-                        'Contact',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      child: TextField(
+                        controller: _usernameController,
+                        focusNode: _usernameFocus,
+                        decoration: const InputDecoration(labelText: 'Email'),
                       ),
                     ),
-                    Expanded(
-                      child: Text(
-                        'Hire Date',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                    const SizedBox(width: 8),
+                    ToggleButtons(
+                      isSelected: [
+                        _selectedStatus == null,
+                        _selectedStatus == true,
+                        _selectedStatus == false,
+                      ],
+                      onPressed: (index) {
+                        setState(() {
+                          _selectedStatus = [null, true, false][index];
+                        });
+                        _applyFilters();
+                      },
+                      children: const [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('All'),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('Active'),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('Inactive'),
+                        ),
+                      ],
                     ),
-                    Expanded(
-                      child: Text(
-                        'Status',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 80,
-                      child: Text(
-                        'Actions',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        _nameController.clear();
+                        _usernameController.clear();
+                        setState(() {
+                          _selectedStatus = null;
+                        });
+                        Provider.of<UserProvider>(
+                          context,
+                          listen: false,
+                        ).setFilters();
+                      },
+                      child: const Text('Reset'),
                     ),
                   ],
                 ),
               ),
-              const Divider(thickness: 1),
+              const SizedBox(height: 8),
               Expanded(
-                child: ListView.builder(
-                  itemCount: provider.users.length,
-                  itemBuilder: (context, index) {
-                    final user = provider.users[index];
-                    return Container(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Theme.of(context).dividerColor,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: ListView.builder(
+                    key: ValueKey(provider.users.length),
+                    itemCount: provider.users.length,
+                    itemBuilder: (context, index) {
+                      final user = provider.users[index];
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
                         ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Row(
-                              children: [
-                                const CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: Colors.deepPurpleAccent,
-                                  child: Icon(
-                                    Icons.person,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${user.firstName} ${user.lastName}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      if (user.roles.isNotEmpty)
-                                        AppTheme.roleChip(user.roles.first),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
                           ),
-                          Expanded(
-                            flex: 2,
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.phone,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    user.phoneNumber ?? '-',
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(_formatDateTime(user.createdAt)),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: AppTheme.statusChip(isActive: user.isActive),
-                          ),
-                          SizedBox(
-                            width: 80,
-                            child: Center(
-                              child: Wrap(
-                                spacing: 4,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Row(
                                 children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, size: 18),
-                                    onPressed: () =>
-                                        _showUpdateUserDialog(context, user),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.info_outline,
-                                      size: 18,
+                                  const CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: Colors.deepPurpleAccent,
+                                    child: Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 20,
                                     ),
-                                    onPressed: () {},
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, size: 18),
-                                    color: Colors.red,
-                                    onPressed: () =>
-                                        _confirmDelete(context, user.id),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${user.firstName} ${user.lastName}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          user.email,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Color.fromARGB(255, 0, 0, 0),
+                                          ),
+                                        ),
+                                        if (user.roles.isNotEmpty)
+                                          AppTheme.roleChip(user.roles.first),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                            Expanded(
+                              flex: 2,
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.phone,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      user.phoneNumber ?? '-',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_today,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(_formatDateTime(user.createdAt)),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: AppTheme.statusChip(
+                                isActive: user.isActive,
+                              ),
+                            ),
+                            SizedBox(
+                              width: 80,
+                              child: Center(
+                                child: Wrap(
+                                  spacing: 4,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, size: 18),
+                                      onPressed: () =>
+                                          _showUpdateUserDialog(context, user),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, size: 18),
+                                      color: Colors.red,
+                                      onPressed: () =>
+                                          _confirmDelete(context, user.id),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -243,7 +300,6 @@ class _UserListScreenState extends State<UserListScreen> {
                   provider.setPageSize(newSize);
                 },
               ),
-
               const SizedBox(height: 8),
             ],
           );

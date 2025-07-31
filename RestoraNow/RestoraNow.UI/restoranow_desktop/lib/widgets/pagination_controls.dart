@@ -1,4 +1,3 @@
-// lib/widgets/pagination_controls.dart
 import 'package:flutter/material.dart';
 
 class PaginationControls extends StatelessWidget {
@@ -23,6 +22,7 @@ class PaginationControls extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Page size selector
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -30,52 +30,36 @@ class PaginationControls extends StatelessWidget {
             const SizedBox(width: 8),
             DropdownButton<int>(
               value: pageSize,
-              onChanged: (value) {
-                if (value != null) onPageSizeChange(value);
-              },
-              items: pageSizeOptions
-                  .map((size) => DropdownMenuItem<int>(
-                        value: size,
-                        child: Text('$size'),
-                      ))
-                  .toList(),
+              onChanged: (value) => value != null ? onPageSizeChange(value) : null,
+              items: pageSizeOptions.map((size) => DropdownMenuItem(value: size, child: Text('$size'))).toList(),
             ),
           ],
         ),
         const SizedBox(height: 8),
+
+        // Page navigation buttons
         Wrap(
           alignment: WrapAlignment.center,
           spacing: 4,
           children: [
             IconButton(
               icon: const Icon(Icons.chevron_left),
-              onPressed: currentPage > 1
-                  ? () => onPageChange(currentPage - 1)
-                  : null,
+              onPressed: currentPage > 1 ? () => onPageChange(currentPage - 1) : null,
             ),
-            ...List.generate(
-              totalPages,
-              (index) {
-                final page = index + 1;
-                return ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: currentPage == page
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.grey[300],
-                    foregroundColor: currentPage == page
-                        ? Colors.white
-                        : Colors.black,
-                  ),
-                  onPressed: () => onPageChange(page),
-                  child: Text('$page'),
-                );
-              },
-            ),
+            for (var page = 1; page <= totalPages; page++)
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: currentPage == page
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.grey[300],
+                  foregroundColor: currentPage == page ? Colors.white : Colors.black,
+                ),
+                onPressed: () => onPageChange(page),
+                child: Text('$page'),
+              ),
             IconButton(
               icon: const Icon(Icons.chevron_right),
-              onPressed: currentPage < totalPages
-                  ? () => onPageChange(currentPage + 1)
-                  : null,
+              onPressed: currentPage < totalPages ? () => onPageChange(currentPage + 1) : null,
             ),
           ],
         ),

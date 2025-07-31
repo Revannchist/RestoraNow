@@ -8,8 +8,11 @@ class UserProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
-  int _totalCount = 0;
+  String? _nameFilter;
+  String? _usernameFilter;
+  bool? _isActiveFilter;
 
+  int _totalCount = 0;
   int _currentPage = 1;
   int _pageSize = 10;
 
@@ -27,13 +30,7 @@ class UserProvider with ChangeNotifier {
   String? get error => _error;
   int get totalCount => _totalCount;
 
-  Future<void> fetchUsers({
-    String? name,
-    String? username,
-    bool? isActive,
-    String? sortBy,
-    bool ascending = true,
-  }) async {
+  Future<void> fetchUsers({String? sortBy, bool ascending = true}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -41,9 +38,11 @@ class UserProvider with ChangeNotifier {
     try {
       final result = await _apiService.get(
         filter: {
-          if (name != null) 'Name': name,
-          if (username != null) 'Username': username,
-          if (isActive != null) 'IsActive': isActive.toString(),
+          if (_nameFilter != null && _nameFilter!.isNotEmpty)
+            'Name': _nameFilter!,
+          if (_usernameFilter != null && _usernameFilter!.isNotEmpty)
+            'Username': _usernameFilter!,
+          if (_isActiveFilter != null) 'IsActive': _isActiveFilter.toString(),
         },
         page: _currentPage,
         pageSize: _pageSize,
@@ -132,6 +131,14 @@ class UserProvider with ChangeNotifier {
   void setPageSize(int newSize) {
     _pageSize = newSize;
     _currentPage = 1;
-    fetchUsers(); // ✅ Don't pass pageSize manually
+    fetchUsers();
+  }
+
+  void setFilters({String? name, String? username, bool? isActive}) {
+    _nameFilter = name;
+    _usernameFilter = username;
+    _isActiveFilter = isActive;
+    _currentPage = 1;
+    fetchUsers(); // Use the stored filters
   }
 }
