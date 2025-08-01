@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import 'layouts/main_layout.dart';
 import 'screens/user_screen/user_list_screen.dart';
 import 'screens/login_screen.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/user_provider.dart';
+import 'providers/user_image_provider.dart';
 import 'theme/theme.dart';
 
 void main() {
@@ -22,6 +22,8 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => UserImageProvider())
+
       ],
       child: MaterialApp(
         title: 'RestoraNow Admin',

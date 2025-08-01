@@ -141,4 +141,24 @@ class UserProvider with ChangeNotifier {
     _currentPage = 1;
     fetchUsers(); // Use the stored filters
   }
+
+  void updateUserImageUrl(int userId, String newImageUrl) {
+    final index = _users.indexWhere((u) => u.id == userId);
+    if (index != -1) {
+      final user = _users[index];
+      final updatedUser = user.copyWith(imageUrls: [newImageUrl]);
+      _users[index] = updatedUser;
+      notifyListeners();
+    }
+  }
+
+  void removeUserImage(int userId) {
+    final index = _users.indexWhere((u) => u.id == userId);
+    if (index != -1) {
+      final user = _users[index];
+      final updatedUser = user.copyWith(imageUrls: []);
+      _users[index] = updatedUser;
+      notifyListeners();
+    }
+  }
 }

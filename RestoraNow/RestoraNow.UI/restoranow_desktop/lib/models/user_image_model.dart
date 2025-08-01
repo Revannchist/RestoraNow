@@ -1,16 +1,15 @@
+// models/user_image_model.dart
 class UserImageModel {
   final int id;
   final String url;
   final String? description;
   final int userId;
-  final String? username;
 
   UserImageModel({
     required this.id,
     required this.url,
     this.description,
     required this.userId,
-    this.username,
   });
 
   factory UserImageModel.fromJson(Map<String, dynamic> json) {
@@ -19,7 +18,6 @@ class UserImageModel {
       url: json['url'],
       description: json['description'],
       userId: json['userId'],
-      username: json['username'],
     );
   }
 
@@ -29,7 +27,6 @@ class UserImageModel {
       'url': url,
       'description': description,
       'userId': userId,
-      'username': username,
     };
   }
 }

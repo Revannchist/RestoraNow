@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RestoraNow.Services.Entities
 {
@@ -24,5 +19,4 @@ namespace RestoraNow.Services.Entities
         [ForeignKey("UserId")]
         public User User { get; set; }
     }
-
 }

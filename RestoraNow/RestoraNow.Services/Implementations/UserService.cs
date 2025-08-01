@@ -123,7 +123,7 @@ namespace RestoraNow.Services.Implementations
 
             if (!roleResult.Succeeded)
             {
-                _context.ChangeTracker.Clear(); // 💥 Clear tracking again if roles failed
+                _context.ChangeTracker.Clear();
                 throw new ValidationException($"Failed to assign roles: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
             }
 
@@ -198,14 +198,26 @@ namespace RestoraNow.Services.Implementations
                 throw new Exception($"User update failed: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}");
             }
 
+            //await _context.Entry(user)
+            //    .Collection(u => u.Images)
+            //    .LoadAsync();
+            //var userResponse = _mapper.Map<UserResponse>(user);
+            //// Include updated roles in the response
+            //var roles = await _userManager.GetRolesAsync(user);
+            //userResponse.Roles = roles.ToList();
+
+            //return userResponse;
+
+            await _context.Entry(user)
+                .Collection(u => u.Images)
+                .LoadAsync();
+
             var userResponse = _mapper.Map<UserResponse>(user);
-            // Include updated roles in the response
             var roles = await _userManager.GetRolesAsync(user);
             userResponse.Roles = roles.ToList();
 
             return userResponse;
         }
-
 
         public override async Task<UserResponse?> GetByIdAsync(int id)
         {
@@ -255,7 +267,6 @@ namespace RestoraNow.Services.Implementations
                 };
             }
 
-
             else
             {
                 query = query.OrderBy(u => u.Id); // default sort
@@ -292,6 +303,5 @@ namespace RestoraNow.Services.Implementations
                 TotalCount = totalCount
             };
         }
-
     }
 }
