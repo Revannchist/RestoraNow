@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace RestoraNow.Model.Requests
 {
     public class UserImageRequest
     {
-        [Required(ErrorMessage = "Image URL is required.")]
+        [Required(ErrorMessage = "Image is required.")]
         //[Url(ErrorMessage = "Invalid URL format.")]
         public string Url { get; set; } = null!;
 

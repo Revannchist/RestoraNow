@@ -51,7 +51,7 @@ namespace RestoraNow.Services.Mappings
             // User -> UserResponse
             TypeAdapterConfig<User, UserResponse>.NewConfig()
                 .Map(dest => dest.Username, src => src.UserName)
-                .Map(dest => dest.ImageUrls, src => src.Images.Select(img => img.Url).ToList())
+                .Map(dest => dest.ImageUrl, src => src.Image != null ? src.Image.Url : null)
                 .Map(dest => dest.Roles, src => new List<string>()); // Initialize empty, will be populated in service
 
 

@@ -42,7 +42,7 @@ class MainLayout extends StatelessWidget {
                   const SizedBox(width: 16),
                   TextButton(
                     onPressed: () {
-                      print("Menu clicked");
+                      Navigator.pushNamed(context, '/menu');
                     },
                     child: const Text(
                       "Menu",

@@ -606,7 +606,8 @@ namespace RestoraNow.Services.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_UserImages_UserId",
                 table: "UserImages",
-                column: "UserId");
+                column: "UserId",
+                unique: true);
         }
 
         /// <inheritdoc />

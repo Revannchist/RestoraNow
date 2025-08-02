@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using RestoraNow.Services.Entities;
 
 namespace RestoraNow.Services.Data
@@ -7,11 +8,13 @@ namespace RestoraNow.Services.Data
     {
         private readonly RoleManager<IdentityRole<int>> _roleManager;
         private readonly UserManager<User> _userManager;
+        private readonly ApplicationDbContext _context;
 
-        public DataSeeder(RoleManager<IdentityRole<int>> roleManager, UserManager<User> userManager)
+        public DataSeeder(RoleManager<IdentityRole<int>> roleManager, UserManager<User> userManager, ApplicationDbContext context)
         {
             _roleManager = roleManager;
             _userManager = userManager;
+            _context = context;
         }
 
         public async Task SeedRolesAsync()
@@ -30,7 +33,6 @@ namespace RestoraNow.Services.Data
                     }
                 }
             }
-
 
             // Seed admin user
             var adminUser = await _userManager.FindByEmailAsync("admin@restoranow.com");
@@ -55,8 +57,31 @@ namespace RestoraNow.Services.Data
                     throw new Exception($"Failed to create admin user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                 }
             }
-
-
         }
+
+        public async Task SeedMenuCategoriesAsync()
+        {
+            var defaultCategories = new[]
+            {
+                new MenuCategory { Name = "Appetizers", Description = "Start your meal with a light bite." },
+                new MenuCategory { Name = "Main Courses", Description = "Hearty and satisfying meals." },
+                new MenuCategory { Name = "Desserts", Description = "Sweet treats to finish your meal." },
+                new MenuCategory { Name = "Drinks", Description = "Beverages to complement your dish." }
+            };
+
+            foreach (var category in defaultCategories)
+            {
+                bool exists = await _context.Categories
+                    .AnyAsync(mc => mc.Name == category.Name);
+
+                if (!exists)
+                {
+                    _context.Categories.Add(category);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
     }
 }

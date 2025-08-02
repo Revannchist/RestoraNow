@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
-using Microsoft.EntityFrameworkCore;
 
 namespace RestoraNow.Services.Entities
 {
@@ -40,5 +33,4 @@ namespace RestoraNow.Services.Entities
 
         public ICollection<OrderItem> OrderItems { get; set; }
     }
-
 }

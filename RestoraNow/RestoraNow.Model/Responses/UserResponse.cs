@@ -16,7 +16,6 @@ namespace RestoraNow.Model.Responses
         public string? PhoneNumber { get; set; }
 
         public List<string> Roles { get; set; } = new List<string>();
-        public List<string> ImageUrls { get; set; } = new List<string>();
-
+        public string? ImageUrl { get; set; }
     }
 }

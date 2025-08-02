@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../providers/auth_provider.dart';
-import '../models/search_result.dart';
+import 'auth_provider.dart';
+import '../../models/search_result.dart';
 
 abstract class BaseProvider<T> with ChangeNotifier {
   static String? _baseUrl;

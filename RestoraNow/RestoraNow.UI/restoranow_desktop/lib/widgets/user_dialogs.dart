@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -20,21 +21,21 @@ void showCreateUserDialog(BuildContext context) {
   final passwordController = TextEditingController();
   final phoneNumberController = TextEditingController();
 
-  final emailFocusNode = FocusNode();
-  final phoneFocusNode = FocusNode();
-  final passwordFocusNode = FocusNode();
+  final firstNameFocus = FocusNode();
+  final lastNameFocus = FocusNode();
+  final emailFocus = FocusNode();
+  final phoneFocus = FocusNode();
+  final passwordFocus = FocusNode();
 
+  final fieldErrors = <String, String?>{};
   bool isActive = true;
   bool obscurePassword = true;
   bool isFormValid = false;
-  bool phoneTouched = false;
-  bool passwordTouched = false;
-
-  final fieldErrors = <String, String?>{};
 
   void updateFormValidity(StateSetter setState) {
+    final isValid = _formKey.currentState?.validate() ?? false;
     setState(() {
-      isFormValid = _formKey.currentState?.validate() ?? false;
+      isFormValid = isValid;
     });
   }
 
@@ -43,144 +44,187 @@ void showCreateUserDialog(BuildContext context) {
     builder: (context) {
       return StatefulBuilder(
         builder: (context, setState) {
-          phoneFocusNode.addListener(() {
-            if (!phoneFocusNode.hasFocus) {
-              setState(() => phoneTouched = true);
+          firstNameFocus.addListener(() {
+            if (!firstNameFocus.hasFocus) {
               _formKey.currentState?.validate();
+              updateFormValidity(setState);
             }
           });
-          passwordFocusNode.addListener(() {
-            if (!passwordFocusNode.hasFocus) {
-              setState(() => passwordTouched = true);
+          lastNameFocus.addListener(() {
+            if (!lastNameFocus.hasFocus) {
               _formKey.currentState?.validate();
+              updateFormValidity(setState);
+            }
+          });
+          emailFocus.addListener(() {
+            if (!emailFocus.hasFocus) {
+              _formKey.currentState?.validate();
+              updateFormValidity(setState);
+            }
+          });
+          phoneFocus.addListener(() {
+            if (!phoneFocus.hasFocus) {
+              _formKey.currentState?.validate();
+              updateFormValidity(setState);
+            }
+          });
+          passwordFocus.addListener(() {
+            if (!passwordFocus.hasFocus) {
+              _formKey.currentState?.validate();
+              updateFormValidity(setState);
             }
           });
 
           return AlertDialog(
             title: const Text('Create User'),
             content: SingleChildScrollView(
-              child: Form(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: firstNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'First Name',
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: Form(
+                  key: _formKey,
+                  autovalidateMode: AutovalidateMode.disabled,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: firstNameController,
+                        focusNode: firstNameFocus,
+                        decoration: const InputDecoration(
+                          labelText: 'First Name',
+                          isDense: true,
+                        ),
+                        onChanged: (_) => updateFormValidity(setState),
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty)
+                            ? 'First name is required.'
+                            : null,
                       ),
-                      validator: (value) =>
-                          value == null || value.trim().isEmpty
-                          ? 'First name is required.'
-                          : null,
-                      onChanged: (_) => updateFormValidity(setState),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: lastNameController,
-                      decoration: const InputDecoration(labelText: 'Last Name'),
-                      validator: (value) =>
-                          value == null || value.trim().isEmpty
-                          ? 'Last name is required.'
-                          : null,
-                      onChanged: (_) => updateFormValidity(setState),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: emailController,
-                      focusNode: emailFocusNode,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        errorText: fieldErrors['email'],
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: lastNameController,
+                        focusNode: lastNameFocus,
+                        decoration: const InputDecoration(
+                          labelText: 'Last Name',
+                          isDense: true,
+                        ),
+                        onChanged: (_) => updateFormValidity(setState),
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty)
+                            ? 'Last name is required.'
+                            : null,
                       ),
-                      validator: (value) {
-                        if (fieldErrors['email'] != null)
-                          return fieldErrors['email'];
-                        if (value == null || value.trim().isEmpty)
-                          return 'Email is required.';
-                        final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                        if (!emailRegex.hasMatch(value))
-                          return 'Enter a valid email address.';
-                        return null;
-                      },
-                      onChanged: (_) => updateFormValidity(setState),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: passwordController,
-                      focusNode: passwordFocusNode,
-                      obscureText: obscurePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscurePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                          ),
-                          onPressed: () => setState(
-                            () => obscurePassword = !obscurePassword,
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: emailController,
+                        focusNode: emailFocus,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          isDense: true,
+                          errorText: fieldErrors['email'],
+                        ),
+                        onChanged: (_) => updateFormValidity(setState),
+                        validator: (value) {
+                          if (fieldErrors['email'] != null) {
+                            return fieldErrors['email'];
+                          }
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Email is required.';
+                          }
+                          final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                          if (!emailRegex.hasMatch(value)) {
+                            return 'Enter a valid email address.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: passwordController,
+                        focusNode: passwordFocus,
+                        obscureText: obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          isDense: true,
+                          errorMaxLines: 2,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () => setState(
+                              () => obscurePassword = !obscurePassword,
+                            ),
                           ),
                         ),
+                        onChanged: (_) => updateFormValidity(setState),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Password is required.';
+                          }
+                          if (value.length < 6) {
+                            return 'Password must be at least 6 characters.';
+                          }
+                          if (!RegExp(r'\d').hasMatch(value)) {
+                            return 'Password must contain at least one number.';
+                          }
+                          return null;
+                        },
                       ),
-                      validator: (value) {
-                        if (!passwordTouched) return null;
-                        if (value == null || value.trim().isEmpty)
-                          return 'Password is required.';
-                        if (value.length < 6)
-                          return 'Password must be at least 6 characters.';
-                        if (!RegExp(r'\d').hasMatch(value))
-                          return 'Password must contain at least one number.';
-                        return null;
-                      },
-                      onChanged: (_) => updateFormValidity(setState),
-                    ),
-                    if (passwordController.text.isNotEmpty)
-                      PasswordStrengthMeter(password: passwordController.text),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: phoneNumberController,
-                      focusNode: phoneFocusNode,
-                      decoration: InputDecoration(
-                        labelText: 'Phone Number',
-                        errorText: fieldErrors['phone'],
-                      ),
-                      validator: (value) {
-                        if (!phoneTouched) return null;
-                        if (fieldErrors['phone'] != null)
-                          return fieldErrors['phone'];
-                        if (value == null || value.trim().isEmpty)
-                          return 'Phone number is required.';
-                        final phoneRegex = RegExp(
-                          r'^(?:\+?\d{7,15}|0\d{6,14})$',
-                        );
-                        if (!phoneRegex.hasMatch(value.trim()))
-                          return 'Enter a valid phone number (7–15 digits).';
-                        return null;
-                      },
-                      onChanged: (_) => updateFormValidity(setState),
-                    ),
-                    const SizedBox(height: 12),
-                    CheckboxListTile(
-                      title: const Text('Is Active'),
-                      value: isActive,
-                      onChanged: (value) {
-                        setState(() {
-                          isActive = value ?? true;
-                        });
-                        updateFormValidity(setState);
-                      },
-                    ),
-                    if (fieldErrors['general'] != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          fieldErrors['general']!,
-                          style: const TextStyle(color: Colors.red),
+                      if (passwordController.text.isNotEmpty)
+                        PasswordStrengthMeter(
+                          password: passwordController.text,
                         ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneNumberController,
+                        focusNode: phoneFocus,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[\d+]')),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number',
+                          isDense: true,
+                          errorText: fieldErrors['phone'],
+                          errorMaxLines: 2,
+                        ),
+                        onChanged: (_) => updateFormValidity(setState),
+                        validator: (value) {
+                          if (fieldErrors['phone'] != null) {
+                            return fieldErrors['phone'];
+                          }
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Phone number is required.';
+                          }
+                          final phoneRegex = RegExp(
+                            r'^(?:\+?\d{7,15}|0\d{6,14})$',
+                          );
+                          if (!phoneRegex.hasMatch(value.trim())) {
+                            return 'Enter a valid phone number.';
+                          }
+                          return null;
+                        },
                       ),
-                  ],
+                      const SizedBox(height: 12),
+                      CheckboxListTile(
+                        title: const Text('Is Active'),
+                        value: isActive,
+                        onChanged: (value) {
+                          setState(() => isActive = value ?? true);
+                          updateFormValidity(setState);
+                        },
+                      ),
+                      if (fieldErrors['general'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            fieldErrors['general']!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -200,7 +244,7 @@ void showCreateUserDialog(BuildContext context) {
                           isActive: isActive,
                           createdAt: DateTime.now(),
                           roles: [],
-                          imageUrls: [],
+                          imageUrl: null,
                           phoneNumber: phoneNumberController.text.trim(),
                         );
 
@@ -211,21 +255,21 @@ void showCreateUserDialog(BuildContext context) {
                             user,
                             passwordController.text.trim(),
                           );
-                          Navigator.pop(context);
+                          if (context.mounted) Navigator.pop(context);
                         } on http.Response catch (response) {
                           try {
                             final errorData = jsonDecode(response.body);
                             if (errorData['errors'] is Map) {
-                              final Map<String, dynamic> errors =
-                                  errorData['errors'];
+                              final errors = Map<String, dynamic>.from(
+                                errorData['errors'],
+                              );
                               setState(() {
-                                fieldErrors.clear();
                                 errors.forEach((key, value) {
+                                  final field = key.toLowerCase();
                                   if (value is List && value.isNotEmpty) {
-                                    final lowerKey = key.toLowerCase();
-                                    if (lowerKey.contains("email")) {
+                                    if (field.contains("email")) {
                                       fieldErrors['email'] = value.first;
-                                    } else if (lowerKey.contains("phone")) {
+                                    } else if (field.contains("phone")) {
                                       fieldErrors['phone'] = value.first;
                                     } else {
                                       fieldErrors['general'] = value.first;
@@ -233,20 +277,19 @@ void showCreateUserDialog(BuildContext context) {
                                   }
                                 });
                               });
-                              _formKey.currentState!.validate();
                             }
                           } catch (_) {
                             setState(() {
                               fieldErrors['general'] =
                                   'Unexpected error occurred.';
                             });
-                            _formKey.currentState!.validate();
                           }
+                          _formKey.currentState?.validate();
                         } catch (e) {
                           setState(() {
                             fieldErrors['general'] = e.toString();
                           });
-                          _formKey.currentState!.validate();
+                          _formKey.currentState?.validate();
                         }
                       }
                     : null,
@@ -278,7 +321,8 @@ void showUpdateUserDialog(
   String? selectedRole = user.roles.isNotEmpty ? user.roles.first : null;
 
   final imageProvider = Provider.of<UserImageProvider>(context, listen: false);
-  String? newImageUrl;
+  final currentImage = imageProvider.getImageForUser(user.id);
+  String? newImageUrl = currentImage?.url;
   bool imageMarkedForDeletion = false;
 
   showDialog(
@@ -286,149 +330,132 @@ void showUpdateUserDialog(
     builder: (context) {
       return StatefulBuilder(
         builder: (context, setState) {
-          // Load image after first frame
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (newImageUrl == null && !imageMarkedForDeletion) {
-              final currentImage = imageProvider.getImageForUser(user.id);
-              if (currentImage?.url != null) {
-                setState(() {
-                  newImageUrl = currentImage!.url;
-                });
-              }
-            }
-          });
-
           return AlertDialog(
             title: const Text('Update User'),
             content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: firstNameController,
-                    decoration: const InputDecoration(labelText: 'First Name'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: lastNameController,
-                    decoration: const InputDecoration(labelText: 'Last Name'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: emailController,
-                    decoration: const InputDecoration(labelText: 'Email'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: passwordController,
-                    obscureText: obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'New Password (optional)',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () =>
-                            setState(() => obscurePassword = !obscurePassword),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: firstNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'First Name',
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: phoneNumberController,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone Number',
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: lastNameController,
+                      decoration: const InputDecoration(labelText: 'Last Name'),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: selectedRole,
-                    items: UserListScreen.availableRoles
-                        .map(
-                          (role) =>
-                              DropdownMenuItem(value: role, child: Text(role)),
-                        )
-                        .toList(),
-                    onChanged: (value) => setState(() => selectedRole = value),
-                    decoration: const InputDecoration(labelText: 'Role'),
-                  ),
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    title: const Text('Is Active'),
-                    value: isActive,
-                    onChanged: (value) =>
-                        setState(() => isActive = value ?? true),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      if (!imageMarkedForDeletion && newImageUrl != null)
-                        CircleAvatar(
-                          backgroundImage: MemoryImage(
-                            _decodeBase64Image(newImageUrl!),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(labelText: 'Email'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'New Password (optional)',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                           ),
-                          radius: 24,
-                        )
-                      else
-                        const CircleAvatar(
-                          radius: 24,
-                          child: Icon(Icons.person),
+                          onPressed: () => setState(
+                            () => obscurePassword = !obscurePassword,
+                          ),
                         ),
-                      const SizedBox(width: 12),
-                      Column(
-                        children: [
-                          ElevatedButton(
-                            onPressed: () async {
-                              final result = await FilePicker.platform
-                                  .pickFiles(type: FileType.image);
-                              if (result != null &&
-                                  result.files.single.path != null) {
-                                final file = File(result.files.single.path!);
-                                final bytes = await file.readAsBytes();
-                                String mimeType = 'image/png';
-
-                                if (file.path.toLowerCase().endsWith('.jpg') ||
-                                    file.path.toLowerCase().endsWith('.jpeg')) {
-                                  mimeType = 'image/jpeg';
-                                } else if (file.path.toLowerCase().endsWith(
-                                  '.gif',
-                                )) {
-                                  mimeType = 'image/gif';
-                                } else if (file.path.toLowerCase().endsWith(
-                                  '.bmp',
-                                )) {
-                                  mimeType = 'image/bmp';
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phoneNumberController,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedRole,
+                      items: UserListScreen.availableRoles
+                          .map(
+                            (role) => DropdownMenuItem(
+                              value: role,
+                              child: Text(role),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => selectedRole = value),
+                      decoration: const InputDecoration(labelText: 'Role'),
+                    ),
+                    const SizedBox(height: 12),
+                    CheckboxListTile(
+                      title: const Text('Is Active'),
+                      value: isActive,
+                      onChanged: (value) =>
+                          setState(() => isActive = value ?? true),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (!imageMarkedForDeletion && newImageUrl != null)
+                          CircleAvatar(
+                            backgroundImage: MemoryImage(
+                              _decodeBase64Image(newImageUrl!),
+                            ),
+                            radius: 24,
+                          )
+                        else
+                          const CircleAvatar(
+                            radius: 24,
+                            child: Icon(Icons.person),
+                          ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () async {
+                                final result = await FilePicker.platform
+                                    .pickFiles(type: FileType.image);
+                                if (result != null &&
+                                    result.files.single.path != null) {
+                                  final file = File(result.files.single.path!);
+                                  final bytes = await file.readAsBytes();
+                                  final base64 = base64Encode(bytes);
+                                  final mimeType = _getMimeType(file.path);
+                                  final dataUrl =
+                                      'data:$mimeType;base64,$base64';
+                                  setState(() {
+                                    newImageUrl = dataUrl;
+                                    imageMarkedForDeletion = false;
+                                  });
                                 }
-
-                                final base64Image = base64Encode(bytes);
-                                final dataUrl =
-                                    'data:$mimeType;base64,$base64Image';
-
+                              },
+                              child: const Text('Change Image'),
+                            ),
+                            TextButton(
+                              onPressed: () {
                                 setState(() {
-                                  newImageUrl = dataUrl;
-                                  imageMarkedForDeletion = false;
+                                  newImageUrl = null;
+                                  imageMarkedForDeletion = true;
                                 });
-                              }
-                            },
-                            child: const Text('Change Image'),
-                          ),
-
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                newImageUrl = null;
-                                imageMarkedForDeletion = true;
-                              });
-                            },
-                            child: const Text('Remove Image'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+                              },
+                              child: const Text('Remove Image'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -448,31 +475,25 @@ void showUpdateUserDialog(
                         ? passwordController.text.trim()
                         : null,
                     roles: [if (selectedRole != null) selectedRole!],
-                    // Image not included in user update
                   );
 
                   await context.read<UserProvider>().updateUser(updatedUser);
 
-                  // Handle image updates separately
-                  final currentImage = imageProvider.getImageForUser(user.id);
+                  final existingImage = imageProvider.getImageForUser(user.id);
 
-                  if (imageMarkedForDeletion && currentImage != null) {
+                  if (imageMarkedForDeletion && existingImage != null) {
                     await imageProvider.deleteUserImage(
-                      currentImage.id,
+                      existingImage.id,
                       user.id,
                     );
-
-                    // ✅ Update the user image state in UserProvider
                     context.read<UserProvider>().removeUserImage(user.id);
-
                     onImageUpdated?.call();
-                  } else if (newImageUrl != null &&
-                      newImageUrl != currentImage?.url) {
+                  } else if (!imageMarkedForDeletion && newImageUrl != null) {
                     await imageProvider.uploadOrUpdateImage(
                       UserImageModel(
-                        id: currentImage?.id ?? 0,
-                        url: newImageUrl!,
+                        id: existingImage?.id ?? 0,
                         userId: user.id,
+                        url: newImageUrl!,
                         description: 'Profile image',
                       ),
                     );
@@ -499,4 +520,16 @@ Uint8List _decodeBase64Image(String base64String) {
   final regex = RegExp(r'data:image/[^;]+;base64,');
   final cleaned = base64String.replaceAll(regex, '');
   return base64Decode(cleaned);
+}
+
+String _getMimeType(String path) {
+  if (path.toLowerCase().endsWith('.jpg') ||
+      path.toLowerCase().endsWith('.jpeg')) {
+    return 'image/jpeg';
+  } else if (path.toLowerCase().endsWith('.gif')) {
+    return 'image/gif';
+  } else if (path.toLowerCase().endsWith('.bmp')) {
+    return 'image/bmp';
+  }
+  return 'image/png';
 }

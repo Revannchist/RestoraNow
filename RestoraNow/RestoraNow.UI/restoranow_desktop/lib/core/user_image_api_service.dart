@@ -1,5 +1,5 @@
 import '../models/user_image_model.dart';
-import '../providers/base_provider.dart';
+import '../providers/base/base_provider.dart';
 
 class UserImageApiService extends BaseProvider<UserImageModel> {
   UserImageApiService() : super("UserImage");

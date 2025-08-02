@@ -32,7 +32,7 @@ namespace RestoraNow.Services.Implementations
 
         protected override IQueryable<User> AddInclude(IQueryable<User> query)
         {
-            return query.Include(x => x.Images);
+            return query.Include(x => x.Image);
         }
 
         protected override IQueryable<User> ApplyFilter(IQueryable<User> query, UserSearchModel search)
@@ -135,7 +135,6 @@ namespace RestoraNow.Services.Implementations
             return userResponse;
         }
 
-
         public override async Task<UserResponse?> UpdateAsync(int id, UserUpdateRequest request)
         {
             var user = await _userManager.FindByIdAsync(id.ToString());
@@ -198,18 +197,8 @@ namespace RestoraNow.Services.Implementations
                 throw new Exception($"User update failed: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}");
             }
 
-            //await _context.Entry(user)
-            //    .Collection(u => u.Images)
-            //    .LoadAsync();
-            //var userResponse = _mapper.Map<UserResponse>(user);
-            //// Include updated roles in the response
-            //var roles = await _userManager.GetRolesAsync(user);
-            //userResponse.Roles = roles.ToList();
-
-            //return userResponse;
-
             await _context.Entry(user)
-                .Collection(u => u.Images)
+                .Reference(u => u.Image)
                 .LoadAsync();
 
             var userResponse = _mapper.Map<UserResponse>(user);
@@ -226,7 +215,7 @@ namespace RestoraNow.Services.Implementations
 
             // Include Images if needed
             await _context.Entry(user)
-                .Collection(u => u.Images)
+                .Reference(u => u.Image)
                 .LoadAsync();
 
             var userResponse = _mapper.Map<UserResponse>(user);

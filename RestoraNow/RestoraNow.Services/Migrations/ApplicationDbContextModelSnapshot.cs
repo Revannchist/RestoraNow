@@ -660,7 +660,8 @@ namespace RestoraNow.Services.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
                     b.ToTable("UserImages");
                 });
@@ -871,8 +872,8 @@ namespace RestoraNow.Services.Migrations
             modelBuilder.Entity("RestoraNow.Services.Entities.UserImage", b =>
                 {
                     b.HasOne("RestoraNow.Services.Entities.User", "User")
-                        .WithMany("Images")
-                        .HasForeignKey("UserId")
+                        .WithOne("Image")
+                        .HasForeignKey("RestoraNow.Services.Entities.UserImage", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -917,7 +918,7 @@ namespace RestoraNow.Services.Migrations
                 {
                     b.Navigation("Addresses");
 
-                    b.Navigation("Images");
+                    b.Navigation("Image");
 
                     b.Navigation("Orders");
 

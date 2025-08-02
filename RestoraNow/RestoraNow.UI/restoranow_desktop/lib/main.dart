@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:restoranow_desktop/providers/menu_category_provider.dart';
+import 'package:restoranow_desktop/providers/menu_item_image_provider.dart';
+import 'package:restoranow_desktop/providers/menu_item_provider.dart';
 import 'layouts/main_layout.dart';
 import 'screens/user_screen/user_list_screen.dart';
+import 'screens/menu_item_screen/menu_item_list_screen.dart';
 import 'screens/login_screen.dart';
 
-import 'providers/auth_provider.dart';
+import 'providers/base/auth_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/user_image_provider.dart';
 import 'theme/theme.dart';
@@ -22,7 +26,11 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => UserImageProvider())
+        ChangeNotifierProvider(create: (_) => UserImageProvider()),
+        ChangeNotifierProvider(create: (_) => MenuItemImageProvider()),
+        ChangeNotifierProvider(create: (_) => MenuCategoryProvider()),
+        ChangeNotifierProvider(create: (_) => MenuItemProvider()),
+
 
       ],
       child: MaterialApp(
@@ -33,6 +41,8 @@ class MyApp extends StatelessWidget {
           '/login': (context) => const LoginScreen(),
           '/home': (context) => const MyHomePage(title: 'RestoraNow Admin Panel'),
           '/users': (context) => const UserListScreen(),
+          '/menu': (context) => const MenuItemListScreen(),
+
         },
       ),
     );

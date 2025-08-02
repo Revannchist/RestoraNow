@@ -199,11 +199,9 @@ class _UserListScreenState extends State<UserListScreen> {
                               child: Row(
                                 children: [
                                   ClipOval(
-                                    child: user.imageUrls.isNotEmpty
+                                    child: user.imageUrl != null
                                         ? Image.memory(
-                                            _decodeBase64Image(
-                                              user.imageUrls.first,
-                                            ),
+                                            _decodeBase64Image(user.imageUrl!),
                                             width: 40,
                                             height: 40,
                                             fit: BoxFit.cover,
@@ -225,6 +223,7 @@ class _UserListScreenState extends State<UserListScreen> {
                                             ),
                                           ),
                                   ),
+
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
@@ -297,8 +296,13 @@ class _UserListScreenState extends State<UserListScreen> {
                                   children: [
                                     IconButton(
                                       icon: const Icon(Icons.edit, size: 18),
-                                      onPressed: () =>
-                                          showUpdateUserDialog(context, user),
+                                      onPressed: () => showUpdateUserDialog(
+                                        context,
+                                        user,
+                                        onImageUpdated: () => setState(
+                                          () {},
+                                        ), // Trigger local rebuild
+                                      ),
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.delete, size: 18),

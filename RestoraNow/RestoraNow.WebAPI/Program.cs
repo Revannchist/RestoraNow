@@ -159,8 +159,8 @@ namespace RestoraNow.WebAPI
 
                 var seeder = services.GetRequiredService<DataSeeder>();
                 await seeder.SeedRolesAsync();
+                await seeder.SeedMenuCategoriesAsync();
             }
-
 
             await app.RunAsync();
         }

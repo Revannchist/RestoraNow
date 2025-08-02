@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace RestoraNow.Model.Requests
 {
     public class MenuItemRequest
     {
         [Required]
+        [MaxLength(20)]
         public string Name { get; set; }
 
         public string? Description { get; set; }
@@ -21,7 +20,6 @@ namespace RestoraNow.Model.Requests
         public bool IsSpecialOfTheDay { get; set; } = false;
 
         [Required]
-        //[Range(1, int.MaxValue, ErrorMessage = "Please select a valid category.")]
         public int CategoryId { get; set; }
     }
 }

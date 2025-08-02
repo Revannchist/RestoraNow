@@ -9,7 +9,7 @@ class UserModel {
   final DateTime? lastLoginAt;
   final String? phoneNumber;
   final List<String> roles;
-  final List<String> imageUrls;
+  final String? imageUrl;
   final String? password;
 
   UserModel({
@@ -23,7 +23,7 @@ class UserModel {
     this.lastLoginAt,
     this.phoneNumber,
     required this.roles,
-    required this.imageUrls,
+    this.imageUrl,
     this.password,
   });
 
@@ -38,7 +38,7 @@ class UserModel {
     DateTime? lastLoginAt,
     String? phoneNumber,
     List<String>? roles,
-    List<String>? imageUrls,
+    String? imageUrl,
     String? password,
   }) {
     return UserModel(
@@ -52,27 +52,27 @@ class UserModel {
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       roles: roles ?? this.roles,
-      imageUrls: imageUrls ?? this.imageUrls,
+      imageUrl: imageUrl ?? this.imageUrl,
       password: password ?? this.password,
     );
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-  return UserModel(
-    id: json['id'],
-    firstName: json['firstName'],
-    lastName: json['lastName'],
-    email: json['email'],
-    username: json['username'],
-    isActive: json['isActive'],
-    createdAt: DateTime.parse(json['createdAt']),
-    lastLoginAt: json['lastLoginAt'] != null ? DateTime.parse(json['lastLoginAt']) : null,
-    phoneNumber: json['phoneNumber'],
-    roles: List<String>.from(json['roles']),
-    imageUrls: List<String>.from(json['imageUrls']),
-    password: null, // never returned from backend for security reasons
-  );
+    return UserModel(
+      id: json['id'],
+      firstName: json['firstName'],
+      lastName: json['lastName'],
+      email: json['email'],
+      username: json['username'],
+      isActive: json['isActive'],
+      createdAt: DateTime.parse(json['createdAt']),
+      lastLoginAt: json['lastLoginAt'] != null
+          ? DateTime.parse(json['lastLoginAt'])
+          : null,
+      phoneNumber: json['phoneNumber'],
+      roles: List<String>.from(json['roles']),
+      imageUrl: json['imageUrl'],
+      password: null,
+    );
+  }
 }
-
-}
-

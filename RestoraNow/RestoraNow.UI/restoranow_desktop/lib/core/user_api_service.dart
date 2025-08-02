@@ -1,4 +1,4 @@
-import '../providers/base_provider.dart';
+import '../providers/base/base_provider.dart';
 import '../models/user_model.dart';
 
 class UserApiService extends BaseProvider<UserModel> {
