@@ -152,7 +152,6 @@ void updateUserImageUrl(int userId, String newImageUrl) {
   }
 }
 
-
 void removeUserImage(int userId) {
   final index = _users.indexWhere((u) => u.id == userId);
   if (index != -1) {

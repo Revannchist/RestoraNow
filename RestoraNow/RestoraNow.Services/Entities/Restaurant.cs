@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace RestoraNow.Services.Entities
 {
@@ -36,5 +31,4 @@ namespace RestoraNow.Services.Entities
         public ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();
     }
-
 }

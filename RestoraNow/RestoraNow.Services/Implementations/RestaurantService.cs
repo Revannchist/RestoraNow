@@ -11,7 +11,7 @@ using RestoraNow.Services.Interfaces;
 namespace RestoraNow.Services.Implementations
 {
     public class RestaurantService
-        : BaseCRUDService<RestaurantResponse, RestaurantSearchModel, Restaurant, RestaurantRequest, RestaurantRequest>,
+        : BaseCRUDService<RestaurantResponse, RestaurantSearchModel, Restaurant, RestaurantRequest, RestaurantUpdateRequest>,
           IRestaurantService
     {
         public RestaurantService(ApplicationDbContext context, IMapper mapper)
@@ -41,7 +41,7 @@ namespace RestoraNow.Services.Implementations
             return await base.InsertAsync(request);
         }
 
-        public override async Task<RestaurantResponse?> UpdateAsync(int id, RestaurantRequest request)
+        public override async Task<RestaurantResponse?> UpdateAsync(int id, RestaurantUpdateRequest request)
         {
             var entity = await _context.Restaurants.FindAsync(id);
             if (entity == null)

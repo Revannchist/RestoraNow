@@ -2,7 +2,7 @@
 
 namespace RestoraNow.Model.Requests
 {
-    public class RestaurantRequest
+    public class RestaurantUpdateRequest
     {
         [Required]
         [MaxLength(100)]
@@ -21,6 +21,5 @@ namespace RestoraNow.Model.Requests
         [MaxLength(500)]
         public string? Description { get; set; }
 
-        //public bool IsActive { get; set; } = true;
     }
 }

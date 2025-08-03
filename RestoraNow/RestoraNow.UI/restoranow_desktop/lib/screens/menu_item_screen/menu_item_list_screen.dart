@@ -7,8 +7,10 @@ import 'package:provider/provider.dart';
 import '../../layouts/main_layout.dart';
 import '../../providers/menu_item_provider.dart';
 import '../../providers/menu_item_image_provider.dart';
+import '../../providers/menu_category_provider.dart';
 import '../../widgets/menu_item_dialogs.dart';
 import '../../widgets/pagination_controls.dart';
+import '../../models/menu_item_model.dart';
 
 class MenuItemListScreen extends StatefulWidget {
   const MenuItemListScreen({super.key});
@@ -28,6 +30,9 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
     super.initState();
     final provider = Provider.of<MenuItemProvider>(context, listen: false);
     final imageProvider = Provider.of<MenuItemImageProvider>(context, listen: false);
+    final categoryProvider = Provider.of<MenuCategoryProvider>(context, listen: false);
+
+    categoryProvider.fetchCategories(); // preload categories
 
     provider.fetchItems().then((_) {
       for (var item in provider.items) {
@@ -58,8 +63,8 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
   @override
   Widget build(BuildContext context) {
     return MainLayout(
-      child: Consumer2<MenuItemProvider, MenuItemImageProvider>(
-        builder: (context, provider, imageProvider, child) {
+      child: Consumer3<MenuItemProvider, MenuItemImageProvider, MenuCategoryProvider>(
+        builder: (context, provider, imageProvider, categoryProvider, child) {
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -72,6 +77,18 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => showCreateMenuItemDialog(context),
+                      child: const Text('Add Menu Item'),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
                 child: Row(
                   children: [
                     Expanded(
@@ -118,9 +135,16 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
                       ],
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () => showCreateMenuItemDialog(context),
-                      child: const Text('Add Menu Item'),
+                    TextButton(
+                      onPressed: () {
+                        _nameController.clear();
+                        setState(() {
+                          _isAvailable = null;
+                          _isSpecial = null;
+                        });
+                        Provider.of<MenuItemProvider>(context, listen: false).setFilters();
+                      },
+                      child: const Text('Reset'),
                     ),
                   ],
                 ),
@@ -131,12 +155,13 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
                   itemBuilder: (context, index) {
                     final item = provider.items[index];
                     final images = imageProvider.getImagesForMenuItem(item.id);
+                    final categoryName = item.categoryName ?? categoryProvider.getById(item.categoryId)?.name ?? 'Unknown';
 
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: ListTile(
                         title: Text(item.name),
-                        subtitle: Text('${item.categoryName} - \$${item.price.toStringAsFixed(2)}'),
+                        subtitle: Text('$categoryName - \$${item.price.toStringAsFixed(2)}'),
                         leading: images.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
@@ -153,7 +178,25 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit, size: 18),
-                              onPressed: () => showUpdateMenuItemDialog(context, item),
+                              onPressed: () async {
+                                if (categoryProvider.categories.isEmpty) {
+                                  await categoryProvider.fetchCategories();
+                                }
+
+                                final fullItem = MenuItemModel(
+                                  id: item.id,
+                                  name: item.name,
+                                  description: item.description,
+                                  price: item.price,
+                                  isAvailable: item.isAvailable,
+                                  isSpecialOfTheDay: item.isSpecialOfTheDay,
+                                  categoryId: item.categoryId,
+                                  categoryName: categoryProvider.getById(item.categoryId)?.name,
+                                  imageUrls: item.imageUrls,
+                                );
+
+                                showUpdateMenuItemDialog(context, fullItem);
+                              },
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, size: 18),

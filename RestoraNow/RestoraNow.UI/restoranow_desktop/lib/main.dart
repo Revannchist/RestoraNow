@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:restoranow_desktop/providers/menu_category_provider.dart';
 import 'package:restoranow_desktop/providers/menu_item_image_provider.dart';
 import 'package:restoranow_desktop/providers/menu_item_provider.dart';
+import 'package:restoranow_desktop/providers/restaurant_provider.dart';
+import 'package:restoranow_desktop/providers/table_provider.dart';
 import 'layouts/main_layout.dart';
 import 'screens/user_screen/user_list_screen.dart';
 import 'screens/menu_item_screen/menu_item_list_screen.dart';
+import 'screens/table_screen/restaurant_screen.dart';
 import 'screens/login_screen.dart';
 
 import 'providers/base/auth_provider.dart';
@@ -30,7 +33,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MenuItemImageProvider()),
         ChangeNotifierProvider(create: (_) => MenuCategoryProvider()),
         ChangeNotifierProvider(create: (_) => MenuItemProvider()),
-
+        ChangeNotifierProvider(create: (_) => RestaurantProvider(),),
+        ChangeNotifierProvider(create: (_) => TableProvider()),
 
       ],
       child: MaterialApp(
@@ -39,10 +43,11 @@ class MyApp extends StatelessWidget {
         initialRoute: '/login',
         routes: {
           '/login': (context) => const LoginScreen(),
-          '/home': (context) => const MyHomePage(title: 'RestoraNow Admin Panel'),
+          '/home': (context) =>
+              const MyHomePage(title: 'RestoraNow Admin Panel'),
           '/users': (context) => const UserListScreen(),
           '/menu': (context) => const MenuItemListScreen(),
-
+          '/restaurant': (context) => const RestaurantScreen(),
         },
       ),
     );

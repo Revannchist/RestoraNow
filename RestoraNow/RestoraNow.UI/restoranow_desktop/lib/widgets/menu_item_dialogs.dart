@@ -42,9 +42,11 @@ void showCreateMenuItemDialog(BuildContext context) {
   }
 
   void updateFormValidity(StateSetter setState) {
-    final nameValid = nameController.text.trim().isNotEmpty &&
+    final nameValid =
+        nameController.text.trim().isNotEmpty &&
         nameController.text.trim().length <= 20;
-    final priceValid = double.tryParse(priceController.text.trim()) != null &&
+    final priceValid =
+        double.tryParse(priceController.text.trim()) != null &&
         double.parse(priceController.text.trim()) > 0;
     final categoryValid = selectedCategory != null;
 
@@ -92,23 +94,25 @@ void showCreateMenuItemDialog(BuildContext context) {
                       validator: (value) => !nameTouched
                           ? null
                           : (value == null || value.trim().isEmpty
-                              ? 'Name is required'
-                              : value.trim().length > 20
-                                  ? 'Name must be 20 characters or fewer'
-                                  : null),
+                                ? 'Name is required'
+                                : value.trim().length > 20
+                                ? 'Name must be 20 characters or fewer'
+                                : null),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: descController,
-                      decoration:
-                          const InputDecoration(labelText: 'Description'),
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: priceController,
                       focusNode: priceFocus,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(
                           RegExp(r'^\d*\.?\d{0,2}'),
@@ -151,9 +155,7 @@ void showCreateMenuItemDialog(BuildContext context) {
                       },
                       validator: (value) => !categoryTouched
                           ? null
-                          : (value == null
-                              ? 'Please select a category'
-                              : null),
+                          : (value == null ? 'Please select a category' : null),
                     ),
                     const SizedBox(height: 12),
                     CheckboxListTile(
@@ -187,13 +189,11 @@ void showCreateMenuItemDialog(BuildContext context) {
                         id: 0,
                         name: nameController.text.trim(),
                         description: descController.text.trim(),
-                        price: double.tryParse(
-                                priceController.text.trim()) ??
-                            0,
+                        price:
+                            double.tryParse(priceController.text.trim()) ?? 0,
                         isAvailable: isAvailable,
                         isSpecialOfTheDay: isSpecial,
-                        categoryId:
-                            int.tryParse(selectedCategory ?? '') ?? 0,
+                        categoryId: int.tryParse(selectedCategory ?? '') ?? 0,
                         categoryName: categoryProvider
                             .getById(int.tryParse(selectedCategory ?? '') ?? 0)
                             ?.name,
@@ -216,6 +216,7 @@ void showCreateMenuItemDialog(BuildContext context) {
 }
 
 void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
+  final _formKey = GlobalKey<FormState>();
   final nameController = TextEditingController(text: item.name);
   final descController = TextEditingController(text: item.description ?? '');
   final priceController = TextEditingController(text: item.price.toString());
@@ -231,8 +232,12 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
   bool isAvailable = item.isAvailable;
   bool isSpecial = item.isSpecialOfTheDay;
   String? selectedCategory = item.categoryId.toString();
-  String? newImageUrl;
   bool isFormValid = true;
+
+  final existingImages = imageProvider.getImagesForMenuItem(item.id);
+  List<MenuItemImageModel> imagesToKeep = List.from(existingImages);
+  bool removeExistingImage = false;
+  String? newImageUrl;
 
   void updateFormValidity(StateSetter setState) {
     final nameValid =
@@ -248,8 +253,6 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
     });
   }
 
-  final existingImages = imageProvider.getImagesForMenuItem(item.id);
-
   showDialog(
     context: context,
     builder: (context) => StatefulBuilder(
@@ -258,117 +261,146 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
         content: SingleChildScrollView(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameController,
-                  maxLength: 20,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                  onChanged: (_) => updateFormValidity(setState),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: descController,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: priceController,
-                  decoration: const InputDecoration(labelText: 'Price'),
-                  keyboardType: TextInputType.number,
-                  onChanged: (_) => updateFormValidity(setState),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedCategory,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: categoryProvider.categories
-                      .map(
-                        (c) => DropdownMenuItem(
-                          value: c.id.toString(),
-                          child: Text(c.name),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      selectedCategory = value;
-                    });
-                    updateFormValidity(setState);
-                  },
-                ),
-                CheckboxListTile(
-                  title: const Text('Is Available'),
-                  value: isAvailable,
-                  onChanged: (val) => setState(() => isAvailable = val ?? true),
-                ),
-                CheckboxListTile(
-                  title: const Text('Special of the Day'),
-                  value: isSpecial,
-                  onChanged: (val) => setState(() => isSpecial = val ?? false),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: existingImages
-                      .map(
-                        (img) => Stack(
-                          alignment: Alignment.topRight,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: Image.memory(
-                                _decodeBase64Image(img.url),
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () async {
-                                await imageProvider.deleteImage(
-                                  img.id,
-                                  item.id,
-                                );
-                                setState(() {});
-                              },
-                              child: const Icon(
-                                Icons.close,
-                                size: 18,
-                                color: Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 8),
-                if (newImageUrl != null)
-                  Image.memory(
-                    _decodeBase64Image(newImageUrl!),
-                    width: 60,
-                    height: 60,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    maxLength: 20,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                    onChanged: (_) => updateFormValidity(setState),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Name is required';
+                      }
+                      if (value.trim().length > 20) {
+                        return 'Name must be 20 characters or fewer';
+                      }
+                      return null;
+                    },
                   ),
-                ElevatedButton(
-                  onPressed: () async {
-                    final result = await FilePicker.platform.pickFiles(
-                      type: FileType.image,
-                    );
-                    if (result != null && result.files.single.path != null) {
-                      final file = File(result.files.single.path!);
-                      final bytes = await file.readAsBytes();
-                      final base64 = base64Encode(bytes);
-                      final mimeType = _getMimeType(file.path);
-                      final dataUrl = 'data:$mimeType;base64,$base64';
-                      setState(() => newImageUrl = dataUrl);
-                    }
-                  },
-                  child: const Text('Add Image'),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descController,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: priceController,
+                    decoration: const InputDecoration(labelText: 'Price'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => updateFormValidity(setState),
+                    validator: (value) {
+                      final price = double.tryParse(value ?? '');
+                      if (price == null || price <= 0) {
+                        return 'Price must be greater than 0';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedCategory,
+                    decoration: const InputDecoration(labelText: 'Category'),
+                    items: categoryProvider.categories
+                        .map(
+                          (c) => DropdownMenuItem(
+                            value: c.id.toString(),
+                            child: Text(c.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedCategory = value;
+                      });
+                      updateFormValidity(setState);
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a category';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    title: const Text('Is Available'),
+                    value: isAvailable,
+                    onChanged: (val) =>
+                        setState(() => isAvailable = val ?? true),
+                  ),
+                  CheckboxListTile(
+                    title: const Text('Special of the Day'),
+                    value: isSpecial,
+                    onChanged: (val) =>
+                        setState(() => isSpecial = val ?? false),
+                  ),
+                  const SizedBox(height: 12),
+
+                  /// IMAGE HANDLING
+                  if (imagesToKeep.isNotEmpty && !removeExistingImage)
+                    Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.memory(
+                            _decodeBase64Image(imagesToKeep.first.url),
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              removeExistingImage = true;
+                              newImageUrl = null;
+                            });
+                          },
+                          icon: const Icon(Icons.delete),
+                          label: const Text('Remove Image'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (removeExistingImage || imagesToKeep.isEmpty)
+                    Column(
+                      children: [
+                        if (newImageUrl != null)
+                          Image.memory(
+                            _decodeBase64Image(newImageUrl!),
+                            width: 80,
+                            height: 80,
+                          ),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final result = await FilePicker.platform.pickFiles(
+                              type: FileType.image,
+                            );
+                            if (result != null &&
+                                result.files.single.path != null) {
+                              final file = File(result.files.single.path!);
+                              final bytes = await file.readAsBytes();
+                              final base64 = base64Encode(bytes);
+                              final mimeType = _getMimeType(file.path);
+                              final dataUrl = 'data:$mimeType;base64,$base64';
+                              setState(() => newImageUrl = dataUrl);
+                            }
+                          },
+                          icon: const Icon(Icons.add_a_photo),
+                          label: const Text('Add Image'),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -380,6 +412,8 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
           TextButton(
             onPressed: isFormValid
                 ? () async {
+                    if (!_formKey.currentState!.validate()) return;
+
                     final updated = MenuItemModel(
                       id: item.id,
                       name: nameController.text.trim(),
@@ -388,13 +422,24 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
                       isAvailable: isAvailable,
                       isSpecialOfTheDay: isSpecial,
                       categoryId: int.tryParse(selectedCategory ?? '') ?? 0,
-                      categoryName: categoryProvider
-                          .getById(int.tryParse(selectedCategory ?? '') ?? 0)
-                          ?.name,
+                      categoryName:
+                          categoryProvider
+                              .getById(
+                                int.tryParse(selectedCategory ?? '') ?? 0,
+                              )
+                              ?.name ??
+                          item.categoryName,
                       imageUrls: [],
                     );
 
                     await context.read<MenuItemProvider>().updateItem(updated);
+
+                    if (removeExistingImage && imagesToKeep.isNotEmpty) {
+                      await imageProvider.deleteImage(
+                        imagesToKeep.first.id,
+                        item.id,
+                      );
+                    }
 
                     if (newImageUrl != null) {
                       await imageProvider.uploadImage(
@@ -402,12 +447,12 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
                           id: 0,
                           menuItemId: item.id,
                           url: newImageUrl!,
-                          description: 'New image',
+                          description: 'Updated image',
                         ),
                       );
                     }
 
-                    Navigator.pop(context);
+                    if (context.mounted) Navigator.pop(context);
                   }
                 : null,
             child: const Text('Update'),

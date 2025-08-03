@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace RestoraNow.Model.Requests
 {
@@ -15,12 +13,12 @@ namespace RestoraNow.Model.Requests
         [Range(1, int.MaxValue, ErrorMessage = "Capacity must be at least 1.")]
         public int Capacity { get; set; }
 
-        [MaxLength(50, ErrorMessage = "Location cannot exceed 50 characters.")]
+        [MaxLength(20, ErrorMessage = "Location cannot exceed 20 characters.")]
         public string? Location { get; set; }
 
         public bool IsAvailable { get; set; } = true;
 
-        [MaxLength(500, ErrorMessage = "Notes cannot exceed 500 characters.")]
+        [MaxLength(100, ErrorMessage = "Notes cannot exceed 100 characters.")]
         public string? Notes { get; set; }
 
         [Required(ErrorMessage = "Restaurant ID is required.")]

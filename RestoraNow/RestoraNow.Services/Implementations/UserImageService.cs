@@ -10,10 +10,18 @@ using RestoraNow.Services.Interfaces;
 
 namespace RestoraNow.Services.Implementations
 {
-    public class UserImageService : BaseCRUDService<UserImageResponse, UserImageSearchModel, UserImage, UserImageRequest, UserImageRequest>, IUserImageService
+    public class UserImageService
+        : BaseCRUDService<UserImageResponse, UserImageSearchModel, UserImage, UserImageRequest, UserImageRequest>,
+          IUserImageService
     {
-        public UserImageService(ApplicationDbContext context, IMapper mapper) : base(context, mapper)
+        private readonly ApplicationDbContext _context;
+        private readonly IMapper _mapper;
+
+        public UserImageService(ApplicationDbContext context, IMapper mapper)
+            : base(context, mapper)
         {
+            _context = context;
+            _mapper = mapper;
         }
 
         protected override IQueryable<UserImage> ApplyFilter(IQueryable<UserImage> query, UserImageSearchModel search)
@@ -31,26 +39,39 @@ namespace RestoraNow.Services.Implementations
 
         public override async Task<UserImageResponse> InsertAsync(UserImageRequest request)
         {
-            var userExists = await _context.Users.AnyAsync(u => u.Id == request.UserId);
-            if (!userExists)
+            var user = await _context.Users.Include(u => u.Image).FirstOrDefaultAsync(u => u.Id == request.UserId);
+            if (user == null)
                 throw new KeyNotFoundException($"User with ID {request.UserId} not found.");
 
-            return await base.InsertAsync(request);
+            // Remove old image if it exists
+            if (user.Image != null)
+            {
+                _context.UserImages.Remove(user.Image);
+            }
+
+            // Create and assign new image
+            var entity = _mapper.Map<UserImage>(request);
+            _context.UserImages.Add(entity);
+
+            user.Image = entity;
+
+            await _context.SaveChangesAsync();
+            return _mapper.Map<UserImageResponse>(entity);
         }
 
         public override async Task<UserImageResponse?> UpdateAsync(int id, UserImageRequest request)
         {
-            var entity = await _context.UserImages.FindAsync(id);
-            if (entity == null)
+            var image = await _context.UserImages.Include(i => i.User).FirstOrDefaultAsync(i => i.Id == id);
+            if (image == null)
                 throw new KeyNotFoundException($"User image with ID {id} was not found.");
 
-            var userExists = await _context.Users.AnyAsync(u => u.Id == request.UserId);
-            if (!userExists)
-                throw new KeyNotFoundException($"User with ID {request.UserId} not found.");
+            if (image.UserId != request.UserId)
+                throw new InvalidOperationException("Cannot reassign image to a different user.");
 
-            _mapper.Map(request, entity);
+            _mapper.Map(request, image);
             await _context.SaveChangesAsync();
-            return _mapper.Map<UserImageResponse>(entity);
+
+            return _mapper.Map<UserImageResponse>(image);
         }
 
         public override async Task<UserImageResponse?> GetByIdAsync(int id)
@@ -64,11 +85,16 @@ namespace RestoraNow.Services.Implementations
 
         public override async Task<bool> DeleteAsync(int id)
         {
-            var entity = await _context.UserImages.FindAsync(id);
-            if (entity == null)
+            var image = await _context.UserImages.Include(i => i.User).FirstOrDefaultAsync(i => i.Id == id);
+            if (image == null)
                 throw new KeyNotFoundException($"User image with ID {id} was not found.");
 
-            _context.UserImages.Remove(entity);
+            if (image.User != null)
+            {
+                image.User.Image = null; // Unlink from user
+            }
+
+            _context.UserImages.Remove(image);
             await _context.SaveChangesAsync();
             return true;
         }

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -24,13 +23,14 @@ void showCreateUserDialog(BuildContext context) {
   final firstNameFocus = FocusNode();
   final lastNameFocus = FocusNode();
   final emailFocus = FocusNode();
-  final phoneFocus = FocusNode();
   final passwordFocus = FocusNode();
+  final phoneFocus = FocusNode();
 
   final fieldErrors = <String, String?>{};
   bool isActive = true;
   bool obscurePassword = true;
   bool isFormValid = false;
+  final touchedFields = <String, bool>{};
 
   void updateFormValidity(StateSetter setState) {
     final isValid = _formKey.currentState?.validate() ?? false;
@@ -39,42 +39,16 @@ void showCreateUserDialog(BuildContext context) {
     });
   }
 
+  void markFieldTouched(String fieldName, StateSetter setState) {
+    touchedFields[fieldName] = true;
+    updateFormValidity(setState);
+  }
+
   showDialog(
     context: context,
     builder: (context) {
       return StatefulBuilder(
         builder: (context, setState) {
-          firstNameFocus.addListener(() {
-            if (!firstNameFocus.hasFocus) {
-              _formKey.currentState?.validate();
-              updateFormValidity(setState);
-            }
-          });
-          lastNameFocus.addListener(() {
-            if (!lastNameFocus.hasFocus) {
-              _formKey.currentState?.validate();
-              updateFormValidity(setState);
-            }
-          });
-          emailFocus.addListener(() {
-            if (!emailFocus.hasFocus) {
-              _formKey.currentState?.validate();
-              updateFormValidity(setState);
-            }
-          });
-          phoneFocus.addListener(() {
-            if (!phoneFocus.hasFocus) {
-              _formKey.currentState?.validate();
-              updateFormValidity(setState);
-            }
-          });
-          passwordFocus.addListener(() {
-            if (!passwordFocus.hasFocus) {
-              _formKey.currentState?.validate();
-              updateFormValidity(setState);
-            }
-          });
-
           return AlertDialog(
             title: const Text('Create User'),
             content: SingleChildScrollView(
@@ -94,10 +68,17 @@ void showCreateUserDialog(BuildContext context) {
                           isDense: true,
                         ),
                         onChanged: (_) => updateFormValidity(setState),
-                        validator: (value) =>
-                            (value == null || value.trim().isEmpty)
-                            ? 'First name is required.'
-                            : null,
+                        onFieldSubmitted: (_) =>
+                            markFieldTouched('firstName', setState),
+                        onTapOutside: (_) =>
+                            markFieldTouched('firstName', setState),
+                        validator: (value) {
+                          if (!(touchedFields['firstName'] ?? false))
+                            return null;
+                          return (value == null || value.trim().isEmpty)
+                              ? 'First name is required.'
+                              : null;
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -108,10 +89,17 @@ void showCreateUserDialog(BuildContext context) {
                           isDense: true,
                         ),
                         onChanged: (_) => updateFormValidity(setState),
-                        validator: (value) =>
-                            (value == null || value.trim().isEmpty)
-                            ? 'Last name is required.'
-                            : null,
+                        onFieldSubmitted: (_) =>
+                            markFieldTouched('lastName', setState),
+                        onTapOutside: (_) =>
+                            markFieldTouched('lastName', setState),
+                        validator: (value) {
+                          if (!(touchedFields['lastName'] ?? false))
+                            return null;
+                          return (value == null || value.trim().isEmpty)
+                              ? 'Last name is required.'
+                              : null;
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -123,17 +111,19 @@ void showCreateUserDialog(BuildContext context) {
                           errorText: fieldErrors['email'],
                         ),
                         onChanged: (_) => updateFormValidity(setState),
+                        onFieldSubmitted: (_) =>
+                            markFieldTouched('email', setState),
+                        onTapOutside: (_) =>
+                            markFieldTouched('email', setState),
                         validator: (value) {
-                          if (fieldErrors['email'] != null) {
+                          if (fieldErrors['email'] != null)
                             return fieldErrors['email'];
-                          }
-                          if (value == null || value.trim().isEmpty) {
+                          if (!(touchedFields['email'] ?? false)) return null;
+                          if (value == null || value.trim().isEmpty)
                             return 'Email is required.';
-                          }
                           final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                          if (!emailRegex.hasMatch(value)) {
+                          if (!emailRegex.hasMatch(value))
                             return 'Enter a valid email address.';
-                          }
                           return null;
                         },
                       ),
@@ -158,16 +148,19 @@ void showCreateUserDialog(BuildContext context) {
                           ),
                         ),
                         onChanged: (_) => updateFormValidity(setState),
+                        onFieldSubmitted: (_) =>
+                            markFieldTouched('password', setState),
+                        onTapOutside: (_) =>
+                            markFieldTouched('password', setState),
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
+                          if (!(touchedFields['password'] ?? false))
+                            return null;
+                          if (value == null || value.trim().isEmpty)
                             return 'Password is required.';
-                          }
-                          if (value.length < 6) {
+                          if (value.length < 6)
                             return 'Password must be at least 6 characters.';
-                          }
-                          if (!RegExp(r'\d').hasMatch(value)) {
+                          if (!RegExp(r'\d').hasMatch(value))
                             return 'Password must contain at least one number.';
-                          }
                           return null;
                         },
                       ),
@@ -190,19 +183,21 @@ void showCreateUserDialog(BuildContext context) {
                           errorMaxLines: 2,
                         ),
                         onChanged: (_) => updateFormValidity(setState),
+                        onFieldSubmitted: (_) =>
+                            markFieldTouched('phone', setState),
+                        onTapOutside: (_) =>
+                            markFieldTouched('phone', setState),
                         validator: (value) {
-                          if (fieldErrors['phone'] != null) {
+                          if (fieldErrors['phone'] != null)
                             return fieldErrors['phone'];
-                          }
-                          if (value == null || value.trim().isEmpty) {
+                          if (!(touchedFields['phone'] ?? false)) return null;
+                          if (value == null || value.trim().isEmpty)
                             return 'Phone number is required.';
-                          }
                           final phoneRegex = RegExp(
                             r'^(?:\+?\d{7,15}|0\d{6,14})$',
                           );
-                          if (!phoneRegex.hasMatch(value.trim())) {
+                          if (!phoneRegex.hasMatch(value.trim()))
                             return 'Enter a valid phone number.';
-                          }
                           return null;
                         },
                       ),
@@ -338,24 +333,24 @@ void showUpdateUserDialog(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
+                    TextFormField(
                       controller: firstNameController,
                       decoration: const InputDecoration(
                         labelText: 'First Name',
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    TextFormField(
                       controller: lastNameController,
                       decoration: const InputDecoration(labelText: 'Last Name'),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    TextFormField(
                       controller: emailController,
                       decoration: const InputDecoration(labelText: 'Email'),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    TextFormField(
                       controller: passwordController,
                       obscureText: obscurePassword,
                       decoration: InputDecoration(
@@ -373,7 +368,7 @@ void showUpdateUserDialog(
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    TextFormField(
                       controller: phoneNumberController,
                       decoration: const InputDecoration(
                         labelText: 'Phone Number',
@@ -402,58 +397,93 @@ void showUpdateUserDialog(
                           setState(() => isActive = value ?? true),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (!imageMarkedForDeletion && newImageUrl != null)
+                    if (!imageMarkedForDeletion && newImageUrl != null)
+                      Column(
+                        children: [
                           CircleAvatar(
                             backgroundImage: MemoryImage(
                               _decodeBase64Image(newImageUrl!),
                             ),
-                            radius: 24,
-                          )
-                        else
+                            radius: 36,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.image),
+                                label: const Text('Change Image'),
+                                onPressed: () async {
+                                  final result = await FilePicker.platform
+                                      .pickFiles(type: FileType.image);
+                                  if (result != null &&
+                                      result.files.single.path != null) {
+                                    final file = File(
+                                      result.files.single.path!,
+                                    );
+                                    final bytes = await file.readAsBytes();
+                                    final base64 = base64Encode(bytes);
+                                    final mimeType = _getMimeType(file.path);
+                                    final dataUrl =
+                                        'data:$mimeType;base64,$base64';
+                                    setState(() {
+                                      newImageUrl = dataUrl;
+                                      imageMarkedForDeletion = false;
+                                    });
+                                  }
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton.icon(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                label: const Text('Remove Image'),
+                                onPressed: () {
+                                  setState(() {
+                                    newImageUrl = null;
+                                    imageMarkedForDeletion = true;
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    else
+                      Column(
+                        children: [
                           const CircleAvatar(
-                            radius: 24,
+                            radius: 36,
                             child: Icon(Icons.person),
                           ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () async {
-                                final result = await FilePicker.platform
-                                    .pickFiles(type: FileType.image);
-                                if (result != null &&
-                                    result.files.single.path != null) {
-                                  final file = File(result.files.single.path!);
-                                  final bytes = await file.readAsBytes();
-                                  final base64 = base64Encode(bytes);
-                                  final mimeType = _getMimeType(file.path);
-                                  final dataUrl =
-                                      'data:$mimeType;base64,$base64';
-                                  setState(() {
-                                    newImageUrl = dataUrl;
-                                    imageMarkedForDeletion = false;
-                                  });
-                                }
-                              },
-                              child: const Text('Change Image'),
-                            ),
-                            TextButton(
-                              onPressed: () {
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.add_a_photo),
+                            label: const Text('Add Image'),
+                            onPressed: () async {
+                              final result = await FilePicker.platform
+                                  .pickFiles(type: FileType.image);
+                              if (result != null &&
+                                  result.files.single.path != null) {
+                                final file = File(result.files.single.path!);
+                                final bytes = await file.readAsBytes();
+                                final base64 = base64Encode(bytes);
+                                final mimeType = _getMimeType(file.path);
+                                final dataUrl = 'data:$mimeType;base64,$base64';
                                 setState(() {
-                                  newImageUrl = null;
-                                  imageMarkedForDeletion = true;
+                                  newImageUrl = dataUrl;
+                                  imageMarkedForDeletion = false;
                                 });
-                              },
-                              child: const Text('Remove Image'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -486,6 +516,7 @@ void showUpdateUserDialog(
                       existingImage.id,
                       user.id,
                     );
+                    await context.read<UserProvider>().fetchUsers();
                     context.read<UserProvider>().removeUserImage(user.id);
                     onImageUpdated?.call();
                   } else if (!imageMarkedForDeletion && newImageUrl != null) {
@@ -504,7 +535,7 @@ void showUpdateUserDialog(
                     onImageUpdated?.call();
                   }
 
-                  Navigator.pop(context);
+                  if (context.mounted) Navigator.pop(context);
                 },
                 child: const Text('Update'),
               ),
