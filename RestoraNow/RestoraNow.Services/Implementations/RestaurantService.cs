@@ -1,6 +1,6 @@
 ﻿using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
-using RestoraNow.Model.Requests;
+using RestoraNow.Model.Requests.Restaurant;
 using RestoraNow.Model.Responses;
 using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.BaseServices;

@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace RestoraNow.Model.Responses
 {
@@ -9,6 +7,7 @@ namespace RestoraNow.Model.Responses
         public int Id { get; set; }
         public int UserId { get; set; }
         public string? UserName { get; set; }
+        public string? UserEmail { get; set; }
         public int RestaurantId { get; set; }
         public string? RestaurantName { get; set; }
         public int Rating { get; set; }

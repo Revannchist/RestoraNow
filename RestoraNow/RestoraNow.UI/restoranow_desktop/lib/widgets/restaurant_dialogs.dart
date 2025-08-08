@@ -16,7 +16,9 @@ void showEditRestaurantDialog(BuildContext context) {
   final addressController = TextEditingController(text: restaurant.address);
   final phoneController = TextEditingController(text: restaurant.phoneNumber);
   final emailController = TextEditingController(text: restaurant.email);
-  final descriptionController = TextEditingController(text: restaurant.description);
+  final descriptionController = TextEditingController(
+    text: restaurant.description,
+  );
 
   bool isActive = restaurant.isActive;
 

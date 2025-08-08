@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// AuthProvider manages login and the current JWT token.
+// AuthProvider manages login and the current JWT token.
 class AuthProvider with ChangeNotifier {
   static String? token; // Accessible globally by BaseProvider
   DateTime? expiresAt;
@@ -12,8 +13,8 @@ class AuthProvider with ChangeNotifier {
   String? get error => _error;
 
   Future<bool> login(String email, String password) async {
-    final uri = Uri.parse("http://localhost:5294/api/Auth/login");
-
+    final uri = Uri.parse("${dotenv.env['API_URL']}Auth/login");
+    
     try {
       final response = await http.post(
         uri,

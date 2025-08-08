@@ -58,7 +58,11 @@ namespace RestoraNow.Services.Implementations
 
         public override async Task<ReviewResponse?> UpdateAsync(int id, ReviewRequest request)
         {
-            var entity = await _context.Reviews.FindAsync(id);
+            var entity = await _context.Reviews
+                .Include(r => r.User)
+                .Include(r => r.Restaurant)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
             if (entity == null)
                 throw new KeyNotFoundException($"Review with ID {id} was not found.");
 

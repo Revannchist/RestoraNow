@@ -4,6 +4,8 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 # Environment variables
+# Ignore all .env files everywhere in the project
+**/.env
 .env
 .env.local
 .env.production

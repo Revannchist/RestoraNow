@@ -21,7 +21,11 @@ namespace RestoraNow.Services.Mappings
 
 
             TypeAdapterConfig<Review, ReviewResponse>.NewConfig()
-                .Map(dest => dest.RestaurantName, src => src.Restaurant.Name);
+                .Map(dest => dest.UserName, src => src.User.FirstName + " " + src.User.LastName)
+                .Map(dest => dest.UserEmail, src => src.User.Email)
+                //.Map(dest => dest.RestaurantName, src => src.Restaurant.Name)
+                .IgnoreNullValues(true);
+
 
 
             TypeAdapterConfig<Table, TableResponse>.NewConfig()

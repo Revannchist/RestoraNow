@@ -158,6 +158,7 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
                     final categoryName = item.categoryName ?? categoryProvider.getById(item.categoryId)?.name ?? 'Unknown';
 
                     return Card(
+                      color: Theme.of(context).cardColor,
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: ListTile(
                         title: Text(item.name),

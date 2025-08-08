@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF1A237E); // Indigo[900]
-  static const Color secondaryColor = Color(0xFF673AB7); // DeepPurple
-  static const Color backgroundColor = Color(
-    0xFFF9F5FC,
-  ); // light purple-ish background
+  static const Color primaryColor = Color(0xFF1A237E); // Indigo[900] //0xFF1A237E
+  static const Color secondaryColor = Color(0xFF673AB7); // DeepPurple //0xFF673AB7
+  static const Color backgroundColor = Color(0xFFF9F5FC); // Light purple-ish
   static const Color cardColor = Color(0xFFE8EAF6); // Indigo[50]
   static const Color borderColor = Color(0xFFCED4DA);
 
   static const Color activeColor = Color(0xFFA5D6A7); // Green[200]
   static const Color inactiveColor = Color(0xFFEF9A9A); // Red[200]
-
   static const Color activeTextColor = Color(0xFF2E7D32); // Green[800]
   static const Color inactiveTextColor = Color(0xFFC62828); // Red[800]
 
   static ThemeData get lightTheme {
     return ThemeData(
+
+      canvasColor: Colors.white,
+
       splashFactory: InkRipple.splashFactory,
       splashColor: primaryColor.withOpacity(0.1),
       highlightColor: Colors.transparent,
@@ -31,14 +31,16 @@ class AppTheme {
           TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
         },
       ),
+
       visualDensity: VisualDensity.adaptivePlatformDensity,
       materialTapTargetSize: MaterialTapTargetSize.padded,
 
       primaryColor: primaryColor,
-      scaffoldBackgroundColor: backgroundColor,
+      scaffoldBackgroundColor: Colors.white,
       cardColor: cardColor,
-      dialogBackgroundColor: Colors.white,
+
       dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         titleTextStyle: const TextStyle(
           fontSize: 18,
@@ -47,11 +49,13 @@ class AppTheme {
         ),
         contentTextStyle: const TextStyle(fontSize: 14),
       ),
+
       textTheme: const TextTheme(
         titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         bodyMedium: TextStyle(fontSize: 14),
         labelSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       ),
+
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
@@ -63,12 +67,14 @@ class AppTheme {
           textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ),
+
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primaryColor,
           textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ),
+
       chipTheme: ChipThemeData(
         backgroundColor: Colors.grey.shade300,
         disabledColor: Colors.grey.shade100,
@@ -79,7 +85,9 @@ class AppTheme {
         secondaryLabelStyle: const TextStyle(color: Colors.white),
         brightness: Brightness.light,
       ),
+
       iconTheme: const IconThemeData(color: Colors.grey, size: 20),
+
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         enabledBorder: OutlineInputBorder(
@@ -99,10 +107,12 @@ class AppTheme {
         ),
         labelStyle: const TextStyle(fontSize: 14, color: Colors.grey),
       ),
+
       checkboxTheme: CheckboxThemeData(
         fillColor: MaterialStateProperty.all(primaryColor),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
+
       dropdownMenuTheme: DropdownMenuThemeData(
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -115,7 +125,7 @@ class AppTheme {
     );
   }
 
-  // Status Chip Style
+  // Reusable Chip for status
   static Chip statusChip({required bool isActive}) {
     return Chip(
       label: Text(
@@ -131,7 +141,7 @@ class AppTheme {
     );
   }
 
-  // Role Chip Style
+  // Reusable Chip for roles
   static Chip roleChip(String role) {
     Color roleColor;
 

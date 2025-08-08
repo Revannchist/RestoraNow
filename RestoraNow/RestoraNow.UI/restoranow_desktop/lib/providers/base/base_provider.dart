@@ -3,18 +3,24 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'auth_provider.dart';
 import '../../models/search_result.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 abstract class BaseProvider<T> with ChangeNotifier {
-  static String? _baseUrl;
   final String _endpoint;
   
+  static final String _baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:5294/api/';
+  BaseProvider(this._endpoint);
 
+  /*
+  late final String _baseUrl;
+  
   BaseProvider(this._endpoint) {
     _baseUrl = const String.fromEnvironment(
       "baseUrl",
       defaultValue: "http://localhost:5294/api/",
     );
   }
+  */
 
   T fromJson(Map<String, dynamic> json);
 

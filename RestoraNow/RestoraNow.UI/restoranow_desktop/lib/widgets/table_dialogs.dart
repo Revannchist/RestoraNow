@@ -23,7 +23,9 @@ void showCreateTableDialog(BuildContext context) {
         title: const Text('Create Table'),
         content: Form(
           key: _formKey,
-          autovalidateMode: isTouched ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+          autovalidateMode: isTouched
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
           child: SingleChildScrollView(
             child: Column(
               children: [
@@ -33,9 +35,11 @@ void showCreateTableDialog(BuildContext context) {
                   decoration: const InputDecoration(labelText: 'Table Number'),
                   keyboardType: TextInputType.number,
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Table number is required.';
+                    if (value == null || value.isEmpty)
+                      return 'Table number is required.';
                     final number = int.tryParse(value);
-                    if (number == null || number <= 0) return 'Table number must be a positive number.';
+                    if (number == null || number <= 0)
+                      return 'Table number must be a positive number.';
                     return null;
                   },
                   onChanged: (_) => isTouched = true,
@@ -47,9 +51,11 @@ void showCreateTableDialog(BuildContext context) {
                   decoration: const InputDecoration(labelText: 'Capacity'),
                   keyboardType: TextInputType.number,
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Capacity is required.';
+                    if (value == null || value.isEmpty)
+                      return 'Capacity is required.';
                     final number = int.tryParse(value);
-                    if (number == null || number <= 0) return 'Capacity must be at least 1.';
+                    if (number == null || number <= 0)
+                      return 'Capacity must be at least 1.';
                     return null;
                   },
                   onChanged: (_) => isTouched = true,
@@ -81,7 +87,10 @@ void showCreateTableDialog(BuildContext context) {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           Consumer<TableProvider>(
             builder: (context, provider, child) {
               return ElevatedButton(
@@ -92,9 +101,13 @@ void showCreateTableDialog(BuildContext context) {
                       id: 0,
                       tableNumber: int.parse(tableNumberController.text),
                       capacity: int.parse(capacityController.text),
-                      location: locationController.text.trim().isEmpty ? null : locationController.text.trim(),
+                      location: locationController.text.trim().isEmpty
+                          ? null
+                          : locationController.text.trim(),
                       isAvailable: isAvailable,
-                      notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                      notes: notesController.text.trim().isEmpty
+                          ? null
+                          : notesController.text.trim(),
                       restaurantId: 1,
                     );
                     provider.createItem(table);
@@ -113,8 +126,12 @@ void showCreateTableDialog(BuildContext context) {
 
 void showUpdateTableDialog(BuildContext context, TableModel table) {
   final _formKey = GlobalKey<FormState>();
-  final tableNumberController = TextEditingController(text: table.tableNumber.toString());
-  final capacityController = TextEditingController(text: table.capacity.toString());
+  final tableNumberController = TextEditingController(
+    text: table.tableNumber.toString(),
+  );
+  final capacityController = TextEditingController(
+    text: table.capacity.toString(),
+  );
   final locationController = TextEditingController(text: table.location ?? '');
   final notesController = TextEditingController(text: table.notes ?? '');
   bool isAvailable = table.isAvailable;
@@ -135,9 +152,11 @@ void showUpdateTableDialog(BuildContext context, TableModel table) {
                   decoration: const InputDecoration(labelText: 'Table Number'),
                   keyboardType: TextInputType.number,
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Table number is required.';
+                    if (value == null || value.isEmpty)
+                      return 'Table number is required.';
                     final number = int.tryParse(value);
-                    if (number == null || number <= 0) return 'Table number must be a positive number.';
+                    if (number == null || number <= 0)
+                      return 'Table number must be a positive number.';
                     return null;
                   },
                 ),
@@ -147,9 +166,11 @@ void showUpdateTableDialog(BuildContext context, TableModel table) {
                   decoration: const InputDecoration(labelText: 'Capacity'),
                   keyboardType: TextInputType.number,
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Capacity is required.';
+                    if (value == null || value.isEmpty)
+                      return 'Capacity is required.';
                     final number = int.tryParse(value);
-                    if (number == null || number <= 0) return 'Capacity must be at least 1.';
+                    if (number == null || number <= 0)
+                      return 'Capacity must be at least 1.';
                     return null;
                   },
                 ),
@@ -180,7 +201,10 @@ void showUpdateTableDialog(BuildContext context, TableModel table) {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () {
               if (_formKey.currentState!.validate()) {
@@ -188,12 +212,19 @@ void showUpdateTableDialog(BuildContext context, TableModel table) {
                   id: table.id,
                   tableNumber: int.parse(tableNumberController.text),
                   capacity: int.parse(capacityController.text),
-                  location: locationController.text.trim().isEmpty ? null : locationController.text.trim(),
+                  location: locationController.text.trim().isEmpty
+                      ? null
+                      : locationController.text.trim(),
                   isAvailable: isAvailable,
-                  notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                  notes: notesController.text.trim().isEmpty
+                      ? null
+                      : notesController.text.trim(),
                   restaurantId: table.restaurantId,
                 );
-                Provider.of<TableProvider>(context, listen: false).updateItem(updatedTable);
+                Provider.of<TableProvider>(
+                  context,
+                  listen: false,
+                ).updateItem(updatedTable);
                 Navigator.pop(context);
               }
             },

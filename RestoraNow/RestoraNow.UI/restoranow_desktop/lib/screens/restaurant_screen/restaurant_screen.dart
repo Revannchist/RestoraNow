@@ -63,6 +63,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Card(
+                color: Theme.of(context).cardColor,
                 margin: const EdgeInsets.all(12),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -159,6 +160,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     final table = tableProvider.items[index];
 
                     return Card(
+                      color: Theme.of(context).cardColor,
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: ListTile(
                         title: Text('Table #${table.tableNumber}'),

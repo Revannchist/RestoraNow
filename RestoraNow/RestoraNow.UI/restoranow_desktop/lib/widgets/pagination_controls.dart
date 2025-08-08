@@ -30,8 +30,18 @@ class PaginationControls extends StatelessWidget {
             const SizedBox(width: 8),
             DropdownButton<int>(
               value: pageSize,
-              onChanged: (value) => value != null ? onPageSizeChange(value) : null,
-              items: pageSizeOptions.map((size) => DropdownMenuItem(value: size, child: Text('$size'))).toList(),
+              dropdownColor: Colors.white,
+              style: const TextStyle(
+                color: Colors.black,
+              ),
+              onChanged: (value) =>
+                  value != null ? onPageSizeChange(value) : null,
+              items: pageSizeOptions
+                  .map(
+                    (size) =>
+                        DropdownMenuItem(value: size, child: Text('$size')),
+                  )
+                  .toList(),
             ),
           ],
         ),
@@ -44,7 +54,9 @@ class PaginationControls extends StatelessWidget {
           children: [
             IconButton(
               icon: const Icon(Icons.chevron_left),
-              onPressed: currentPage > 1 ? () => onPageChange(currentPage - 1) : null,
+              onPressed: currentPage > 1
+                  ? () => onPageChange(currentPage - 1)
+                  : null,
             ),
             for (var page = 1; page <= totalPages; page++)
               ElevatedButton(
@@ -52,14 +64,18 @@ class PaginationControls extends StatelessWidget {
                   backgroundColor: currentPage == page
                       ? Theme.of(context).colorScheme.primary
                       : Colors.grey[300],
-                  foregroundColor: currentPage == page ? Colors.white : Colors.black,
+                  foregroundColor: currentPage == page
+                      ? Colors.white
+                      : Colors.black,
                 ),
                 onPressed: () => onPageChange(page),
                 child: Text('$page'),
               ),
             IconButton(
               icon: const Icon(Icons.chevron_right),
-              onPressed: currentPage < totalPages ? () => onPageChange(currentPage + 1) : null,
+              onPressed: currentPage < totalPages
+                  ? () => onPageChange(currentPage + 1)
+                  : null,
             ),
           ],
         ),

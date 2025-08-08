@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace RestoraNow.Model.Requests
+namespace RestoraNow.Model.Requests.Restaurant
 {
     public class RestaurantRequest
     {

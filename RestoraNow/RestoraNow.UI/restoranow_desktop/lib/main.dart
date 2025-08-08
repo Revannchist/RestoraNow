@@ -4,11 +4,16 @@ import 'package:restoranow_desktop/providers/menu_category_provider.dart';
 import 'package:restoranow_desktop/providers/menu_item_image_provider.dart';
 import 'package:restoranow_desktop/providers/menu_item_provider.dart';
 import 'package:restoranow_desktop/providers/restaurant_provider.dart';
+import 'package:restoranow_desktop/providers/review_provider.dart';
 import 'package:restoranow_desktop/providers/table_provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'layouts/main_layout.dart';
 import 'screens/user_screen/user_list_screen.dart';
 import 'screens/menu_item_screen/menu_item_list_screen.dart';
-import 'screens/table_screen/restaurant_screen.dart';
+import 'screens/restaurant_screen/restaurant_screen.dart';
+import 'screens/review_screen/review_screen.dart';
+
 import 'screens/login_screen.dart';
 
 import 'providers/base/auth_provider.dart';
@@ -16,8 +21,11 @@ import 'providers/user_provider.dart';
 import 'providers/user_image_provider.dart';
 import 'theme/theme.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load();
   runApp(const MyApp());
+
+  //debugPrint("Loaded API_URL: ${dotenv.env['API_URL']}");
 }
 
 class MyApp extends StatelessWidget {
@@ -33,9 +41,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MenuItemImageProvider()),
         ChangeNotifierProvider(create: (_) => MenuCategoryProvider()),
         ChangeNotifierProvider(create: (_) => MenuItemProvider()),
-        ChangeNotifierProvider(create: (_) => RestaurantProvider(),),
+        ChangeNotifierProvider(create: (_) => RestaurantProvider()),
         ChangeNotifierProvider(create: (_) => TableProvider()),
-
+        ChangeNotifierProvider(create: (_) => ReviewProvider()),
       ],
       child: MaterialApp(
         title: 'RestoraNow Admin',
@@ -48,6 +56,8 @@ class MyApp extends StatelessWidget {
           '/users': (context) => const UserListScreen(),
           '/menu': (context) => const MenuItemListScreen(),
           '/restaurant': (context) => const RestaurantScreen(),
+          '/reviews': (context) => const ReviewScreen(),
+
         },
       ),
     );

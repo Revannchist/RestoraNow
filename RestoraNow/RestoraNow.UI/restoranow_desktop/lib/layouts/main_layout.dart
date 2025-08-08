@@ -58,6 +58,15 @@ class MainLayout extends StatelessWidget {
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/reviews');
+                    },
+                    child: const Text(
+                      "Reviews",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
                   const SizedBox(width: 16),
                   TextButton(
                     onPressed: () {
