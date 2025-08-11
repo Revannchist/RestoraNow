@@ -70,7 +70,7 @@ class MainLayout extends StatelessWidget {
                   const SizedBox(width: 16),
                   TextButton(
                     onPressed: () {
-                      print("Reservations clicked");
+                      Navigator.pushNamed(context, '/reservations');
                     },
                     child: const Text(
                       "Reservations",

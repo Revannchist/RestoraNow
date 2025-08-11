@@ -60,6 +60,7 @@ void showEditRestaurantDialog(BuildContext context) {
                 maxLines: 2,
               ),
               const SizedBox(height: 12),
+              /*
               SwitchListTile(
                 title: const Text('Is Active'),
                 value: isActive,
@@ -68,6 +69,7 @@ void showEditRestaurantDialog(BuildContext context) {
                   (context as Element).markNeedsBuild();
                 },
               ),
+              */
             ],
           ),
         ),

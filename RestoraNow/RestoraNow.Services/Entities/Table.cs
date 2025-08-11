@@ -1,8 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RestoraNow.Services.Entities
 {
+
+    [Index(nameof(RestaurantId), nameof(TableNumber), IsUnique = true)]
     public class Table
     {
         public int Id { get; set; }

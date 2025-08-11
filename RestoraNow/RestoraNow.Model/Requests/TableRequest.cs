@@ -13,6 +13,7 @@ namespace RestoraNow.Model.Requests
         [Range(1, int.MaxValue, ErrorMessage = "Capacity must be at least 1.")]
         public int Capacity { get; set; }
 
+        [Required(ErrorMessage ="Location is required")]
         [MaxLength(20, ErrorMessage = "Location cannot exceed 20 characters.")]
         public string? Location { get; set; }
 

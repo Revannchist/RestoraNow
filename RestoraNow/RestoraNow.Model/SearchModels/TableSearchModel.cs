@@ -7,5 +7,6 @@ namespace RestoraNow.Model.SearchModels
         public int? RestaurantId { get; set; }
         public int? Capacity { get; set; }
         public bool? IsAvailable { get; set; }
+        public int? TableNumber { get; set; }
     }
 }

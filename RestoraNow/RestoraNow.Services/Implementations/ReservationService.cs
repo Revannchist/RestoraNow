@@ -57,7 +57,12 @@ namespace RestoraNow.Services.Implementations
             if (!tableExists)
                 throw new KeyNotFoundException($"Table with ID {request.TableId} not found.");
 
-            return await base.InsertAsync(request);
+            var entity = _mapper.Map<Reservation>(request);
+            _context.Reservations.Add(entity);
+            await _context.SaveChangesAsync();
+
+            // Return enriched response
+            return (await GetByIdAsync(entity.Id))!;
         }
 
         public override async Task<ReservationResponse?> UpdateAsync(int id, ReservationRequest request)
@@ -76,7 +81,9 @@ namespace RestoraNow.Services.Implementations
 
             _mapper.Map(request, reservation);
             await _context.SaveChangesAsync();
-            return _mapper.Map<ReservationResponse>(reservation);
+
+            // Return enriched response with User/Table included
+            return await GetByIdAsync(reservation.Id);
         }
 
         public override async Task<ReservationResponse?> GetByIdAsync(int id)

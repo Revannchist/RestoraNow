@@ -7,10 +7,6 @@ using RestoraNow.Services.BaseServices;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Entities;
 using RestoraNow.Services.Interfaces;
-using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RestoraNow.Services.Implementations
 {
@@ -26,11 +22,16 @@ namespace RestoraNow.Services.Implementations
         protected override IQueryable<Table> ApplyFilter(IQueryable<Table> query, TableSearchModel search)
         {
             if (search.RestaurantId.HasValue)
-                query = query.Where(t => t.Restaurant.Id == search.RestaurantId.Value);
+                query = query.Where(t => t.RestaurantId == search.RestaurantId.Value);
+
             if (search.Capacity.HasValue)
                 query = query.Where(t => t.Capacity >= search.Capacity.Value);
+
             if (search.IsAvailable.HasValue)
                 query = query.Where(t => t.IsAvailable == search.IsAvailable.Value);
+
+            if (search.TableNumber.HasValue)
+                query = query.Where(t => t.TableNumber == search.TableNumber.Value);
 
             return query;
         }

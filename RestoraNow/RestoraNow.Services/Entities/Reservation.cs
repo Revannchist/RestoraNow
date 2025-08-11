@@ -37,5 +37,4 @@ namespace RestoraNow.Services.Entities
         [ForeignKey("TableId")]
         public virtual Table Table { get; set; }
     }
-
 }
