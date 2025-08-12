@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 using RestoraNow.Model.Enums;
 
 namespace RestoraNow.Services.Entities
@@ -28,5 +23,4 @@ namespace RestoraNow.Services.Entities
 
         public Payment Payment { get; set; }
     }
-
 }

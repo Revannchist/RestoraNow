@@ -1,10 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RestoraNow.Services.Entities
 {
@@ -29,5 +24,4 @@ namespace RestoraNow.Services.Entities
         [Precision(18, 2)]
         public decimal TotalPrice => Quantity * UnitPrice;
     }
-
 }

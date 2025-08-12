@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace RestoraNow.Model.Responses
+namespace RestoraNow.Model.Responses.Order
 {
     public class OrderItemResponse
     {
@@ -12,5 +10,7 @@ namespace RestoraNow.Model.Responses
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+
+        public string? MenuItemName { get; set; }
     }
 }

@@ -1,5 +1,5 @@
-﻿using RestoraNow.Model.Requests;
-using RestoraNow.Model.Responses;
+﻿using RestoraNow.Model.Requests.Order;
+using RestoraNow.Model.Responses.Order;
 using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.Interfaces;
 using RestoraNow.WebAPI.Controllers.Base;

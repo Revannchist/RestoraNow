@@ -37,6 +37,7 @@ namespace RestoraNow.WebAPI
             builder.Services.AddScoped<ITableService, TableService>();
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IUserImageService, UserImageService>();
+            builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
             builder.Services.AddScoped<DataSeeder>(); //Data Seeder
 

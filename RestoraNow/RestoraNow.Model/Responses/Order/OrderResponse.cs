@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
-namespace RestoraNow.Model.Responses
+namespace RestoraNow.Model.Responses.Order
 {
     public class OrderResponse
     {
@@ -12,6 +11,9 @@ namespace RestoraNow.Model.Responses
         public DateTime CreatedAt { get; set; }
         public string Status { get; set; }
         public List<OrderItemResponse> OrderItems { get; set; }
+
+        public string? UserName { get; set; }
+        public decimal Total { get; set; }
     }
 
 }

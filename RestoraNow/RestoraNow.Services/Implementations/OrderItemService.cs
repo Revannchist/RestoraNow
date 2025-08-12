@@ -1,7 +1,7 @@
 ﻿using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
-using RestoraNow.Model.Requests;
-using RestoraNow.Model.Responses;
+using RestoraNow.Model.Requests.Order;
+using RestoraNow.Model.Responses.Order;
 using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.BaseServices;
 using RestoraNow.Services.Data;

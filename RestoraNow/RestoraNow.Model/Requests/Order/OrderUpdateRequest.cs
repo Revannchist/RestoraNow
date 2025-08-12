@@ -1,20 +1,21 @@
-﻿using System;
+﻿using RestoraNow.Model.Enums;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 
-namespace RestoraNow.Model.Requests
+namespace RestoraNow.Model.Requests.Order
 {
-    public class OrderRequest
+    public class OrderUpdateRequest
     {
         [Required]
-        //[Range(1, int.MaxValue, ErrorMessage = "UserId must be a positive number.")]
         public int UserId { get; set; }
 
-        //[Range(1, int.MaxValue, ErrorMessage = "ReservationId must be a positive number if provided.")]
         public int? ReservationId { get; set; }
 
+        // Same semantics as create: duplicates represent quantity
         [MinLength(1, ErrorMessage = "At least one MenuItemId must be provided.")]
         public List<int> MenuItemIds { get; set; } = new List<int>();
+
+        [Required]
+        public OrderStatus Status { get; set; }
     }
 }

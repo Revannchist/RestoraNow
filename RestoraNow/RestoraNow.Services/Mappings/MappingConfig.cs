@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Mapster;
 using RestoraNow.Model.Responses;
+using RestoraNow.Model.Responses.Order;
 using RestoraNow.Services.Entities;
 
 namespace RestoraNow.Services.Mappings
@@ -58,6 +59,16 @@ namespace RestoraNow.Services.Mappings
                 .Map(dest => dest.ImageUrl, src => src.Image != null ? src.Image.Url : null)
                 .Map(dest => dest.Roles, src => new List<string>()); // Initialize empty, will be populated in service
 
+            //-------------------------------
+            TypeAdapterConfig<OrderItem, OrderItemResponse>
+    .           NewConfig()
+                .Map(d => d.TotalPrice, s => s.UnitPrice * s.Quantity)
+    .           Map(d => d.MenuItemName, s => s.MenuItem.Name);
+
+            TypeAdapterConfig<Order, OrderResponse>
+                .NewConfig()
+                .Map(d => d.UserName, s => (s.User.FirstName + " " + s.User.LastName).Trim())
+                .Map(d => d.Total, s => s.OrderItems.Sum(i => i.UnitPrice * i.Quantity));
 
 
             // Other mappings incoming...

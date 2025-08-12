@@ -1,4 +1,4 @@
-﻿using RestoraNow.Model.Responses;
+﻿using RestoraNow.Model.Responses.Order;
 
 namespace RestoraNow.Model.Messages
 {
