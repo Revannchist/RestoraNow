@@ -12,7 +12,7 @@ using RestoraNow.Services.Data;
 namespace RestoraNow.Services.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250802120714_newdb")]
+    [Migration("20250813181737_newdb")]
     partial class newdb
     {
         /// <inheritdoc />
@@ -553,7 +553,8 @@ namespace RestoraNow.Services.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RestaurantId");
+                    b.HasIndex("RestaurantId", "TableNumber")
+                        .IsUnique();
 
                     b.ToTable("Tables");
                 });

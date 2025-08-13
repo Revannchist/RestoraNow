@@ -17,7 +17,6 @@ import '../../core/user_api_service.dart';
 import '../../core/menu_item_api_service.dart';
 import '../../core/reservation_api_service.dart';
 
-/// ---------- CREATE ----------
 void showCreateOrderDialog(BuildContext context) {
   int? selectedUserId;
   String? userError;
@@ -277,7 +276,6 @@ void showCreateOrderDialog(BuildContext context) {
   );
 }
 
-/// ---------- UPDATE ----------
 void showUpdateOrderDialog(BuildContext context, OrderModel order) {
   int? selectedUserId = order.userId;
   String? userError;

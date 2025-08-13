@@ -39,8 +39,8 @@ namespace RestoraNow.Services.Implementations
         public async Task<SummaryResponse> GetSummaryAsync(AnalyticsSearchModel s)
         {
             Normalize(s);
-            var fromDate = s.From!.Value;
-            var toDate = s.To!.Value;
+            var fromDate = s.From!.Value; // UTC
+            var toDate = s.To!.Value;   // UTC
 
             // Revenue from OrderItems
             var revenue = await _db.OrderItems.AsNoTracking()
@@ -49,12 +49,23 @@ namespace RestoraNow.Services.Implementations
                              && oi.Order.CreatedAt <= toDate)
                 .SumAsync(oi => (decimal?)(oi.UnitPrice * oi.Quantity)) ?? 0m;
 
-            var reservations = await _db.Reservations.AsNoTracking()
-                .Select(r => new
-                {
-                    When = r.ReservationDate.Date + r.ReservationTime
-                })
-                .CountAsync(r => r.When >= fromDate && r.When <= toDate);
+            // Reservations: compare date and time separately (translates fully to SQL)
+            var fromD = fromDate.Date;
+            var toD = toDate.Date;
+            var fromT = fromDate.TimeOfDay;
+            var toT = toDate.TimeOfDay;
+
+            var reservations = await _db.Reservations.AsNoTracking().CountAsync(r =>
+                // Whole days strictly inside the range
+                (r.ReservationDate > fromD && r.ReservationDate < toD)
+                // Start boundary day: same date, time >= from time
+                || (r.ReservationDate == fromD && r.ReservationTime >= fromT)
+                // End boundary day: same date, time <= to time
+                || (r.ReservationDate == toD && r.ReservationTime <= toT)
+                // Single-day window (from == to): both date and time within [fromT, toT]
+                || (fromD == toD && r.ReservationDate == fromD
+                    && r.ReservationTime >= fromT && r.ReservationTime <= toT)
+            );
 
             var avgRating = await _db.Reviews.AsNoTracking()
                 .Where(x => x.CreatedAt >= fromDate && x.CreatedAt <= toDate)

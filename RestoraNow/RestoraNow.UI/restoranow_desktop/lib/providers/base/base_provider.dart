@@ -7,8 +7,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 abstract class BaseProvider<T> with ChangeNotifier {
   final String _endpoint;
-  
-  static final String _baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:5294/api/';
+
+  static final String _baseUrl =
+      dotenv.env['API_URL'] ?? 'http://localhost:5294/api/';
   BaseProvider(this._endpoint);
 
   /*
@@ -36,14 +37,16 @@ abstract class BaseProvider<T> with ChangeNotifier {
         if (filter != null) ...filter,
         'Page': '$page',
         'PageSize': '$pageSize',
-        //'RetrieveAll': 'true', 
+        //'RetrieveAll': 'true',
         if (sortBy != null) 'SortBy': sortBy,
         if (sortBy != null) 'Ascending': ascending.toString(),
       },
     );
 
-      debugPrint("→ [BaseProvider] Fetching page $page with pageSize $pageSize for $_endpoint");
-      debugPrint("→ [BaseProvider] Full request URL: $uri");
+    debugPrint(
+      "→ [BaseProvider] Fetching page $page with pageSize $pageSize for $_endpoint",
+    );
+    debugPrint("→ [BaseProvider] Full request URL: $uri");
 
     final headers = _createHeaders();
     _logRequest("GET", uri);
@@ -73,7 +76,6 @@ abstract class BaseProvider<T> with ChangeNotifier {
     } else {
       //throw Exception(_extractErrorMessage(response));
       throw response;
-
     }
   }
 
@@ -156,5 +158,51 @@ abstract class BaseProvider<T> with ChangeNotifier {
   void _logResponse(http.Response response) {
     debugPrint("Response: ${response.statusCode}");
     debugPrint(response.body);
+  }
+
+  //--Analytics
+  @protected
+  Uri buildApiUri(String relativePath, {Map<String, String>? query}) {
+    final base = _baseUrl.endsWith('/') ? _baseUrl : '$_baseUrl/';
+    final path = relativePath.startsWith('/')
+        ? relativePath.substring(1)
+        : relativePath;
+    return Uri.parse('$base$path').replace(queryParameters: query);
+  }
+
+  @protected
+  Future<dynamic> getJson(
+    String relativePath, {
+    Map<String, String>? query,
+  }) async {
+    final uri = buildApiUri(relativePath, query: query);
+    _logRequest("GET", uri);
+    final res = await http.get(uri, headers: _createHeaders());
+    _logResponse(res);
+    if (_isValidResponse(res)) return jsonDecode(res.body);
+    throw Exception(_extractErrorMessage(res));
+  }
+
+  /// For parsing a single object
+  @protected
+  Future<R> getOneCustom<R>(
+    String relativePath,
+    R Function(Map<String, dynamic>) fromJson, {
+    Map<String, String>? query,
+  }) async {
+    final body = await getJson(relativePath, query: query);
+    return fromJson(body as Map<String, dynamic>);
+  }
+
+  /// For parsing a list of objects
+  @protected
+  Future<List<R>> getListCustom<R>(
+    String relativePath,
+    R Function(Map<String, dynamic>) fromJson, {
+    Map<String, String>? query,
+  }) async {
+    final body = await getJson(relativePath, query: query);
+    final list = (body as List).cast<Map<String, dynamic>>();
+    return list.map(fromJson).toList();
   }
 }

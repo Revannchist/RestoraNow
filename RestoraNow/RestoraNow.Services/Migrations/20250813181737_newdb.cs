@@ -599,9 +599,10 @@ namespace RestoraNow.Services.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Tables_RestaurantId",
+                name: "IX_Tables_RestaurantId_TableNumber",
                 table: "Tables",
-                column: "RestaurantId");
+                columns: new[] { "RestaurantId", "TableNumber" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserImages_UserId",

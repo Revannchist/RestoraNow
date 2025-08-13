@@ -84,5 +84,4 @@ namespace RestoraNow.WebAPI.Middleware
             await context.Response.WriteAsync(JsonSerializer.Serialize(new { message }));
         }
     }
-
 }

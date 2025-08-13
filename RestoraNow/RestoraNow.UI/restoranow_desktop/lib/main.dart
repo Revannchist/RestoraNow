@@ -8,6 +8,7 @@ import 'package:restoranow_desktop/providers/restaurant_provider.dart';
 import 'package:restoranow_desktop/providers/review_provider.dart';
 import 'package:restoranow_desktop/providers/table_provider.dart';
 import 'package:restoranow_desktop/providers/order_provider.dart';
+import 'package:restoranow_desktop/providers/analytics_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'layouts/main_layout.dart';
@@ -17,6 +18,8 @@ import 'screens/restaurant_screen/restaurant_screen.dart';
 import 'screens/review_screen/review_screen.dart';
 import 'screens/reservation_screen/reservation_screen.dart';
 import 'screens/order_screen/orders_screen.dart';
+import 'screens/analytics_dashboard_screen.dart';
+import 'screens/user_profile_screen.dart';
 
 import 'screens/login_screen.dart';
 
@@ -50,6 +53,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ReviewProvider()),
         ChangeNotifierProvider(create: (_) => ReservationProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
       ],
       child: MaterialApp(
         title: 'RestoraNow Admin',
@@ -57,15 +61,14 @@ class MyApp extends StatelessWidget {
         initialRoute: '/login',
         routes: {
           '/login': (context) => const LoginScreen(),
-          '/home': (context) =>
-              const MyHomePage(title: 'RestoraNow Admin Panel'),
+          '/home': (context) => const AnalyticsDashboardScreen(),
           '/users': (context) => const UserListScreen(),
           '/menu': (context) => const MenuItemListScreen(),
           '/restaurant': (context) => const RestaurantScreen(),
           '/reviews': (context) => const ReviewScreen(),
           '/reservations': (context) => const ReservationListScreen(),
           '/orders': (context) => const OrdersScreen(),
-          
+          '/profile': (context) => const UserProfileScreen(),
         },
       ),
     );

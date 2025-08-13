@@ -153,14 +153,34 @@ namespace RestoraNow.WebAPI
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
+                var env = services.GetRequiredService<IHostEnvironment>();
                 var dbContext = services.GetRequiredService<ApplicationDbContext>();
 
-                // Ensure the database is created and migrations are applied
                 await dbContext.Database.MigrateAsync();
 
                 var seeder = services.GetRequiredService<DataSeeder>();
+
+                // Idempotent catalog/users
                 await seeder.SeedRolesAsync();
+                await seeder.SeedAdminAsync();
                 await seeder.SeedMenuCategoriesAsync();
+                var restaurantId = await seeder.SeedRestaurantAsync();
+                await seeder.SeedMenuItemsAsync(itemsPerCategory: 6);
+                await seeder.SeedSampleUsersAsync(targetCount: 20);
+                await seeder.SeedTablesAsync(tableCount: 15, restaurantId: restaurantId);
+
+                // --- Seed business data ONCE ---
+                // If ANY of these already exist, skip creating more
+                var hasOrders = await dbContext.Orders.AsNoTracking().AnyAsync();
+                var hasReservations = await dbContext.Reservations.AsNoTracking().AnyAsync();
+                var hasReviews = await dbContext.Reviews.AsNoTracking().AnyAsync();
+
+                if (!hasOrders && !hasReservations && !hasReviews)
+                {
+                    await seeder.SeedReservationsAsync(days: 30, count: 80);
+                    await seeder.SeedOrdersAndItemsAsync(days: 30, orders: 120);
+                    await seeder.SeedReviewsAsync(days: 30, reviews: 60, restaurantId: restaurantId);
+                }
             }
 
             await app.RunAsync();

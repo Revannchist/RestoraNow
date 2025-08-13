@@ -24,6 +24,7 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
   final FocusNode _nameFocus = FocusNode();
   bool? _isAvailable;
   bool? _isSpecial;
+  int? _selectedCategoryId; // NEW
 
   @override
   void initState() {
@@ -50,6 +51,7 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
       name: _nameController.text,
       isAvailable: _isAvailable,
       isSpecial: _isSpecial,
+      categoryId: _selectedCategoryId, // NEW
     );
   }
 
@@ -101,6 +103,25 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
+
+                    // ▼▼▼ Category dropdown (NEW) ▼▼▼
+                    DropdownButton<int?>(
+                      value: _selectedCategoryId,
+                      hint: const Text('Category'),
+                      items: [
+                        const DropdownMenuItem<int?>(value: null, child: Text('All categories')),
+                        ...categoryProvider.categories.map(
+                          (c) => DropdownMenuItem<int?>(value: c.id, child: Text(c.name)),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        setState(() => _selectedCategoryId = v);
+                        _applyFilters();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    // ▲▲▲ Category dropdown (NEW) ▲▲▲
+
                     ToggleButtons(
                       isSelected: [
                         _isAvailable == null,
@@ -141,6 +162,7 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
                         setState(() {
                           _isAvailable = null;
                           _isSpecial = null;
+                          _selectedCategoryId = null; // NEW
                         });
                         Provider.of<MenuItemProvider>(context, listen: false).setFilters();
                       },
@@ -246,7 +268,7 @@ class _MenuItemListScreenState extends State<MenuItemListScreen> {
             TextButton(
               onPressed: () async {
                 await context.read<MenuItemProvider>().deleteItem(id);
-                Navigator.pop(context);
+                if (context.mounted) Navigator.pop(context);
               },
               child: const Text('Delete'),
             ),
