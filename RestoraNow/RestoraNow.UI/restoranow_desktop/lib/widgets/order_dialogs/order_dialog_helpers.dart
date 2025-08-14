@@ -19,9 +19,11 @@ Future<List<UserModel>> searchUsers(String query) async {
   try {
     final SearchResult<UserModel> res = await userApi.get(
       filter: {
-        'Username': q, // email/username
-        'Name': q,     // first/last name
-        'RetrieveAll': 'true',
+        'Name': q,
+        'Username': q,
+        'SortBy': 'Name',
+        'Ascending': 'true',
+
       },
       page: 1,
       pageSize: 10,
@@ -31,6 +33,7 @@ Future<List<UserModel>> searchUsers(String query) async {
     return [];
   }
 }
+
 
 String displayUser(UserModel u) {
   final fn = u.firstName.trim();

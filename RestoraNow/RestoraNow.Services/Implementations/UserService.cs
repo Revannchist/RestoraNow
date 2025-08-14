@@ -37,14 +37,46 @@ namespace RestoraNow.Services.Implementations
 
         protected override IQueryable<User> ApplyFilter(IQueryable<User> query, UserSearchModel search)
         {
-            if (!string.IsNullOrWhiteSpace(search.Name))
-                query = query.Where(u => u.FirstName.Contains(search.Name) || u.LastName.Contains(search.Name));
-
-            if (!string.IsNullOrWhiteSpace(search.Username))
-                query = query.Where(u => u.UserName.Contains(search.Username));
-
+            // Active flag
             if (search.IsActive.HasValue)
                 query = query.Where(u => u.IsActive == search.IsActive.Value);
+
+            var hasName = !string.IsNullOrWhiteSpace(search.Name);
+            var hasUser = !string.IsNullOrWhiteSpace(search.Username);
+
+            if (hasName || hasUser)
+            {
+                var name = search.Name?.Trim();
+                var user = search.Username?.Trim();
+
+                // Pre-split name into parts for "first last"
+                string? p1 = null, p2 = null;
+                if (!string.IsNullOrEmpty(name))
+                {
+                    var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 2) { p1 = parts[0]; p2 = parts[1]; }
+                }
+
+                query = query.Where(u =>
+                    // ---- NAME branch (First / Last / "First Last" either order) ----
+                    (hasName && (
+                        EF.Functions.Like(u.FirstName, $"%{name}%") ||
+                        EF.Functions.Like(u.LastName, $"%{name}%") ||
+                        (u.FirstName != null && u.LastName != null &&
+                         EF.Functions.Like(u.FirstName + " " + u.LastName, $"%{name}%")) ||
+                        (p1 != null && p2 != null && (
+                            (EF.Functions.Like(u.FirstName, $"%{p1}%") && EF.Functions.Like(u.LastName, $"%{p2}%")) ||
+                            (EF.Functions.Like(u.FirstName, $"%{p2}%") && EF.Functions.Like(u.LastName, $"%{p1}%"))
+                        ))
+                    ))
+                    ||
+                    // ---- USER branch (username OR email) ----
+                    (hasUser && (
+                        (u.UserName != null && EF.Functions.Like(u.UserName, $"%{user}%")) ||
+                        (u.Email != null && EF.Functions.Like(u.Email, $"%{user}%"))
+                    ))
+                );
+            }
 
             return query;
         }

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:provider/provider.dart';
 
 import '../../layouts/main_layout.dart';
 import '../../models/reservation_model.dart';
 import '../../providers/reservation_provider.dart';
 import '../../widgets/pagination_controls.dart';
-import '../../widgets/reservation_dialogs/reservation_dialogs.dart'; // implement create/update dialogs
+import '../../widgets/reservation_dialogs/reservation_dialogs.dart';
+
+import '../../models/user_model.dart';
+import '../../widgets/order_dialogs/order_dialog_helpers.dart' as helpers;
 
 class ReservationListScreen extends StatefulWidget {
   const ReservationListScreen({Key? key}) : super(key: key);
@@ -15,11 +19,16 @@ class ReservationListScreen extends StatefulWidget {
 }
 
 class _ReservationListScreenState extends State<ReservationListScreen> {
-  final TextEditingController _userIdController = TextEditingController();
+  // User (TypeAhead → selects UserId, displays username/email)
+  final TextEditingController _userCtrl = TextEditingController();
+  int? _selectedUserId;
+  String? _userError;
+
+  // Table
   final TextEditingController _tableIdController = TextEditingController();
-  final FocusNode _userIdFocus = FocusNode();
   final FocusNode _tableIdFocus = FocusNode();
 
+  // Status + Dates
   DateTime? _fromDate;
   DateTime? _toDate;
   ReservationStatus? _selectedStatus;
@@ -27,12 +36,8 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
   @override
   void initState() {
     super.initState();
-    final provider = Provider.of<ReservationProvider>(context, listen: false);
-    provider.fetchItems();
+    Provider.of<ReservationProvider>(context, listen: false).fetchItems();
 
-    _userIdFocus.addListener(() {
-      if (!_userIdFocus.hasFocus) _applyFilters();
-    });
     _tableIdFocus.addListener(() {
       if (!_tableIdFocus.hasFocus) _applyFilters();
     });
@@ -40,24 +45,21 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
 
   @override
   void dispose() {
-    _userIdFocus.dispose();
+    _userCtrl.dispose();
     _tableIdFocus.dispose();
-    _userIdController.dispose();
     _tableIdController.dispose();
     super.dispose();
   }
 
   void _applyFilters() {
     final provider = Provider.of<ReservationProvider>(context, listen: false);
-    final userId = _userIdController.text.trim().isEmpty
-        ? null
-        : int.tryParse(_userIdController.text.trim());
+
     final tableId = _tableIdController.text.trim().isEmpty
         ? null
         : int.tryParse(_tableIdController.text.trim());
 
     provider.setFilters(
-      userId: userId,
+      userId: _selectedUserId,
       tableId: tableId,
       status: _selectedStatus,
       fromDate: _fromDate,
@@ -94,7 +96,10 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
   }
 
   void _resetFilters() {
-    _userIdController.clear();
+    _userCtrl.clear();
+    _selectedUserId = null;
+    _userError = null;
+
     _tableIdController.clear();
     setState(() {
       _selectedStatus = null;
@@ -109,7 +114,7 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
     return MainLayout(
       child: Consumer<ReservationProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading) {
+          if (provider.isLoading && provider.items.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
           if (provider.error != null) {
@@ -121,7 +126,10 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
             children: [
               // Add button
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
@@ -139,27 +147,79 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                   runSpacing: 8,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    // --- User TypeAhead (display username/email, filter by UserId) ---
                     SizedBox(
-                      width: 160,
-                      child: TextField(
-                        controller: _userIdController,
-                        focusNode: _userIdFocus,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'User ID'),
-                        onSubmitted: (_) => _applyFilters(),
+                      width: 260,
+                      child: TypeAheadField<UserModel>(
+                        suggestionsCallback: helpers.searchUsers,
+                        itemBuilder: (context, u) => ListTile(
+                          dense: true,
+                          title: Text(helpers.displayUser(u)),
+                          subtitle: u.email.isNotEmpty ? Text(u.email) : null,
+                          trailing: Text('ID: ${u.id}'),
+                        ),
+                        onSelected: (u) {
+                          _selectedUserId = u.id;
+                          _userError = null;
+                          _userCtrl.text = helpers.displayUser(u);
+                          _applyFilters();
+                        },
+                        builder: (context, controller, focusNode) {
+                          controller.text = _userCtrl.text;
+                          return TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Filter by User (email/name)',
+                              isDense: true,
+                              errorText: _userError,
+                              suffixIcon: _userCtrl.text.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      tooltip: 'Clear',
+                                      onPressed: () {
+                                        _userCtrl.clear();
+                                        _selectedUserId = null;
+                                        _applyFilters();
+                                      },
+                                      icon: const Icon(Icons.close),
+                                    ),
+                            ),
+                            onChanged: (_) {
+                              // typing invalidates previous selection
+                              _selectedUserId = null;
+                              if (_userError != null) {
+                                setState(() => _userError = null);
+                              }
+                            },
+                            onSubmitted: (_) {
+                              // Allow power users to type a numeric ID directly
+                              _selectedUserId = int.tryParse(
+                                _userCtrl.text.trim(),
+                              );
+                              _applyFilters();
+                            },
+                          );
+                        },
+                        debounceDuration: const Duration(milliseconds: 300),
                       ),
                     ),
+
+                    // --- Table ID/Number same thing ---
                     SizedBox(
                       width: 160,
                       child: TextField(
                         controller: _tableIdController,
                         focusNode: _tableIdFocus,
                         keyboardType: TextInputType.number,
-                        decoration:
-                            const InputDecoration(labelText: 'Table ID'),
+                        decoration: const InputDecoration(
+                          labelText: 'Table number',
+                        ),
                         onSubmitted: (_) => _applyFilters(),
                       ),
                     ),
+
+                    // --- Status ---
                     DropdownButton<ReservationStatus?>(
                       value: _selectedStatus,
                       hint: const Text('Status'),
@@ -168,10 +228,7 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                         _applyFilters();
                       },
                       items: const [
-                        DropdownMenuItem(
-                          value: null,
-                          child: Text('All'),
-                        ),
+                        DropdownMenuItem(value: null, child: Text('All')),
                         DropdownMenuItem(
                           value: ReservationStatus.pending,
                           child: Text('Pending'),
@@ -194,19 +251,25 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                         ),
                       ],
                     ),
+
+                    // --- Dates ---
                     OutlinedButton.icon(
                       onPressed: _pickFromDate,
                       icon: const Icon(Icons.date_range),
-                      label: Text(_fromDate == null
-                          ? 'From date'
-                          : _formatDate(_fromDate!)),
+                      label: Text(
+                        _fromDate == null
+                            ? 'From date'
+                            : _formatDate(_fromDate!),
+                      ),
                     ),
                     OutlinedButton.icon(
                       onPressed: _pickToDate,
                       icon: const Icon(Icons.date_range),
                       label: Text(
-                          _toDate == null ? 'To date' : _formatDate(_toDate!)),
+                        _toDate == null ? 'To date' : _formatDate(_toDate!),
+                      ),
                     ),
+
                     TextButton(
                       onPressed: _resetFilters,
                       child: const Text('Reset'),
@@ -214,6 +277,7 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 8),
 
               // List
@@ -237,7 +301,9 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Theme.of(context).dividerColor),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -268,8 +334,11 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                             Expanded(
                               child: Row(
                                 children: [
-                                  const Icon(Icons.calendar_today,
-                                      size: 16, color: Colors.grey),
+                                  const Icon(
+                                    Icons.calendar_today,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
@@ -284,8 +353,11 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                             Expanded(
                               child: Row(
                                 children: [
-                                  const Icon(Icons.group,
-                                      size: 16, color: Colors.grey),
+                                  const Icon(
+                                    Icons.group,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text('${r.guestCount}'),
                                 ],
@@ -307,15 +379,17 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                                   children: [
                                     IconButton(
                                       icon: const Icon(Icons.edit, size: 18),
-                                      onPressed: () => showUpdateReservationDialog(
-                                        context,
-                                        r,
-                                      ),
+                                      onPressed: () =>
+                                          showUpdateReservationDialog(
+                                            context,
+                                            r,
+                                          ),
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.delete, size: 18),
                                       color: Colors.red,
-                                      onPressed: () => _confirmDelete(context, r.id),
+                                      onPressed: () =>
+                                          _confirmDelete(context, r.id),
                                     ),
                                   ],
                                 ),
@@ -403,10 +477,7 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w600, color: fg),
       ),
     );
   }
@@ -417,8 +488,9 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Confirm Delete'),
-          content:
-              const Text('Are you sure you want to delete this reservation?'),
+          content: const Text(
+            'Are you sure you want to delete this reservation?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),

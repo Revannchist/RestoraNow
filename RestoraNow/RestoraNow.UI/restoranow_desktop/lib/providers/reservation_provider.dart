@@ -10,12 +10,14 @@ class ReservationProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
-  int? _userIdFilter;
+  // Filters (Orders-style)
+  int? _userIdFilter;                 // CHANGED: use UserId instead of UserName
   int? _tableIdFilter;
   ReservationStatus? _statusFilter;
   DateTime? _fromDateFilter;
   DateTime? _toDateFilter;
 
+  // Paging
   int _totalCount = 0;
   int _currentPage = 1;
   int _pageSize = 10;
@@ -44,7 +46,7 @@ class ReservationProvider with ChangeNotifier {
 
   // Filtering
   void setFilters({
-    int? userId,
+    int? userId,                        // CHANGED: userId instead of userName
     int? tableId,
     ReservationStatus? status,
     DateTime? fromDate,
@@ -78,10 +80,10 @@ class ReservationProvider with ChangeNotifier {
         filter['Status'] = _statusToBackendString(_statusFilter!);
       }
       if (_fromDateFilter != null) {
-        filter['FromDate'] = _formatDate(_fromDateFilter!);
+        filter['FromDate'] = _formatDate(_fromDateFilter!); // yyyy-MM-dd
       }
       if (_toDateFilter != null) {
-        filter['ToDate'] = _formatDate(_toDateFilter!);
+        filter['ToDate'] = _formatDate(_toDateFilter!);     // yyyy-MM-dd
       }
 
       final SearchResult<ReservationModel> result = await _apiService.get(
@@ -112,7 +114,6 @@ class ReservationProvider with ChangeNotifier {
       final payload = _toRequestJson(item);
       final created = await _apiService.insert(payload);
 
-      // Append to local list & count
       _items.add(created);
       _totalCount += 1;
 
@@ -144,8 +145,7 @@ class ReservationProvider with ChangeNotifier {
           userId: updated.userId,
           userName: updated.userName ?? prev.userName, // preserve if missing
           tableId: updated.tableId,
-          tableNumber:
-              updated.tableNumber ?? prev.tableNumber, // preserve if missing
+          tableNumber: updated.tableNumber ?? prev.tableNumber,
           reservationDate: updated.reservationDate,
           reservationTime: updated.reservationTime,
           guestCount: updated.guestCount,
@@ -187,14 +187,12 @@ class ReservationProvider with ChangeNotifier {
       '${d.day.toString().padLeft(2, '0')}';
 
   String _statusToBackendString(ReservationStatus s) {
-    // Capitalize to match C# enum names
-    final name = s.name; // e.g., "pending"
+    final name = s.name;
     if (name.toLowerCase() == 'noshow') return 'NoShow';
     return name[0].toUpperCase() + name.substring(1);
   }
 
   Map<String, dynamic> _toRequestJson(ReservationModel item) {
-    // Build request DTO (exclude read-only response fields)
     return {
       'userId': item.userId,
       'tableId': item.tableId,

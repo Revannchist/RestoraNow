@@ -19,7 +19,8 @@ namespace RestoraNow.Services.Implementations
         {
         }
 
-        protected override IQueryable<Reservation> ApplyFilter(IQueryable<Reservation> query, ReservationSearchModel search)
+        protected override IQueryable<Reservation> ApplyFilter(
+            IQueryable<Reservation> query, ReservationSearchModel search)
         {
             if (search.UserId.HasValue)
                 query = query.Where(r => r.UserId == search.UserId.Value);
