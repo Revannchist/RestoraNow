@@ -5,8 +5,9 @@ import '../../layouts/main_layout.dart';
 import '../../providers/restaurant_provider.dart';
 import '../../providers/table_provider.dart';
 import '../../widgets/pagination_controls.dart';
-import '../../widgets/table_dialogs.dart';
-import '../../widgets/restaurant_dialogs.dart';
+
+import '../../widgets/table_dialogs.dart' as tbl;
+import '../../widgets/restaurant_dialogs.dart' as rest;
 
 class RestaurantScreen extends StatefulWidget {
   const RestaurantScreen({super.key});
@@ -23,8 +24,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   @override
   void initState() {
     super.initState();
-    Provider.of<TableProvider>(context, listen: false).fetchItems();
-    Provider.of<RestaurantProvider>(context, listen: false).fetchRestaurant();
+    context.read<TableProvider>().fetchItems();
+    context.read<RestaurantProvider>().fetchRestaurant();
 
     _capacityFocus.addListener(() {
       if (!_capacityFocus.hasFocus) _applyFilters();
@@ -33,10 +34,10 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
   void _applyFilters() {
     final capacity = int.tryParse(_capacityController.text);
-    Provider.of<TableProvider>(context, listen: false).setFilters(
-      capacity: capacity,
-      isAvailable: _isAvailable,
-    );
+    context.read<TableProvider>().setFilters(
+          capacity: capacity,
+          isAvailable: _isAvailable,
+        );
   }
 
   @override
@@ -49,20 +50,20 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   @override
   Widget build(BuildContext context) {
     return MainLayout(
-      child: Consumer2<RestaurantProvider, TableProvider>(
-        builder: (context, restaurantProvider, tableProvider, child) {
-          if (restaurantProvider.isLoading || tableProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (restaurantProvider.error != null) {
-            return Center(child: Text('Error: ${restaurantProvider.error}'));
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // -------- Restaurant card only rebuilds on RestaurantProvider changes
+          Consumer<RestaurantProvider>(
+            builder: (context, rp, _) {
+              if (rp.error != null) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text('Error: ${rp.error}'),
+                );
+              }
+              final r = rp.restaurant;
+              return Card(
                 color: Theme.of(context).cardColor,
                 margin: const EdgeInsets.all(12),
                 child: Padding(
@@ -78,135 +79,176 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                           ),
                           TextButton.icon(
-                            onPressed: () => showEditRestaurantDialog(context),
+                            onPressed: () => rest.showEditRestaurantDialog(context),
                             icon: const Icon(Icons.edit),
                             label: const Text('Edit'),
-                          )
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('Name: ${restaurantProvider.restaurant?.name ?? ''}'),
-                      if (restaurantProvider.restaurant?.address?.isNotEmpty ?? false)
-                        Text('Address: ${restaurantProvider.restaurant!.address}'),
-                      if (restaurantProvider.restaurant?.phoneNumber?.isNotEmpty ?? false)
-                        Text('Phone: ${restaurantProvider.restaurant!.phoneNumber}'),
-                      if (restaurantProvider.restaurant?.email?.isNotEmpty ?? false)
-                        Text('Email: ${restaurantProvider.restaurant!.email}'),
-                      if (restaurantProvider.restaurant?.description?.isNotEmpty ?? false)
-                        Text('Description: ${restaurantProvider.restaurant!.description}'),
+                      Text('Name: ${r?.name ?? ''}'),
+                      if ((r?.address?.isNotEmpty ?? false))
+                        Text('Address: ${r!.address}'),
+                      if ((r?.phoneNumber?.isNotEmpty ?? false))
+                        Text('Phone: ${r!.phoneNumber}'),
+                      if ((r?.email?.isNotEmpty ?? false))
+                        Text('Email: ${r!.email}'),
+                      if ((r?.description?.isNotEmpty ?? false))
+                        Text('Description: ${r!.description}'),
                     ],
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => showCreateTableDialog(context),
-                      child: const Text('Add Table'),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _capacityController,
-                        focusNode: _capacityFocus,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Search by minimum capacity',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ToggleButtons(
-                      isSelected: [
-                        _isAvailable == null,
-                        _isAvailable == true,
-                        _isAvailable == false,
-                      ],
-                      onPressed: (index) {
-                        setState(() => _isAvailable = [null, true, false][index]);
-                        _applyFilters();
-                      },
-                      children: const [
-                        Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('All')),
-                        Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Available')),
-                        Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Unavailable')),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () {
-                        _capacityController.clear();
-                        setState(() => _isAvailable = null);
-                        tableProvider.setFilters();
-                      },
-                      child: const Text('Reset'),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: tableProvider.items.length,
-                  itemBuilder: (context, index) {
-                    final table = tableProvider.items[index];
+              );
+            },
+          ),
 
-                    return Card(
-                      color: Theme.of(context).cardColor,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: ListTile(
-                        title: Text('Table #${table.tableNumber}'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Capacity: ${table.capacity}'),
-                            if (table.location != null && table.location!.isNotEmpty)
-                              Text('Location: ${table.location}'),
-                            if (table.notes != null && table.notes!.isNotEmpty)
-                              Text('Notes: ${table.notes}'),
-                          ],
-                        ),
-                        leading: Icon(
-                          table.isAvailable ? Icons.event_seat : Icons.block,
-                          color: table.isAvailable ? Colors.green : Colors.red,
-                        ),
-                        trailing: Wrap(
-                          spacing: 4,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, size: 18),
-                              onPressed: () => showUpdateTableDialog(context, table),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, size: 18),
-                              color: Colors.red,
-                              onPressed: () => _confirmDelete(context, table.id),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+          // -------- Add button
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: () => tbl.showCreateTableDialog(context),
+                  child: const Text('Add Table'),
                 ),
-              ),
-              PaginationControls(
-                currentPage: tableProvider.currentPage,
-                totalPages: tableProvider.totalPages,
-                pageSize: tableProvider.pageSize,
-                onPageChange: (page) => tableProvider.setPage(page),
-                onPageSizeChange: (size) => tableProvider.setPageSize(size),
-              ),
-            ],
-          );
-        },
+              ],
+            ),
+          ),
+
+          // -------- Filters
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _capacityController,
+                    focusNode: _capacityFocus,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Search by minimum capacity',
+                    ),
+                    onSubmitted: (_) => _applyFilters(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ToggleButtons(
+                  isSelected: [
+                    _isAvailable == null,
+                    _isAvailable == true,
+                    _isAvailable == false,
+                  ],
+                  onPressed: (index) {
+                    setState(() => _isAvailable = [null, true, false][index]);
+                    _applyFilters();
+                  },
+                  children: const [
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('All')),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Available')),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Unavailable')),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                Consumer<TableProvider>(
+                  builder: (_, tp, __) => TextButton(
+                    onPressed: () {
+                      _capacityController.clear();
+                      setState(() => _isAvailable = null);
+                      tp.setFilters(); // clears filters
+                    },
+                    child: const Text('Reset'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // -------- Tables list + pagination (only rebuilds on TableProvider)
+          Expanded(
+            child: Consumer<TableProvider>(
+              builder: (context, tp, _) {
+                final isFirstLoad = tp.isLoading && tp.items.isEmpty;
+
+                // Use a Stack to overlay a slim progress bar while keeping content in place
+                return Stack(
+                  children: [
+                    // Animate list changes (like on reservations)
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: isFirstLoad
+                          ? const Center(child: CircularProgressIndicator())
+                          : (tp.items.isEmpty
+                              ? const Center(child: Text('No tables found'))
+                              : ListView.builder(
+                                  key: ValueKey(tp.items.length), // fade when size changes
+                                  itemCount: tp.items.length,
+                                  itemBuilder: (context, index) {
+                                    final t = tp.items[index];
+                                    return Card(
+                                      color: Theme.of(context).cardColor,
+                                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      child: ListTile(
+                                        title: Text('Table #${t.tableNumber}'),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Capacity: ${t.capacity}'),
+                                            if ((t.location?.isNotEmpty ?? false)) Text('Location: ${t.location}'),
+                                            if ((t.notes?.isNotEmpty ?? false)) Text('Notes: ${t.notes}'),
+                                          ],
+                                        ),
+                                        leading: Icon(
+                                          t.isAvailable ? Icons.event_seat : Icons.block,
+                                          color: t.isAvailable ? Colors.green : Colors.red,
+                                        ),
+                                        trailing: Wrap(
+                                          spacing: 4,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(Icons.edit, size: 18),
+                                              onPressed: () => tbl.showUpdateTableDialog(context, t),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete, size: 18),
+                                              color: Colors.red,
+                                              onPressed: () => _confirmDelete(context, t.id),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                )),
+                    ),
+
+                    // Thin loader on top while fetching (no flicker)
+                    if (tp.isLoading && tp.items.isNotEmpty)
+                      const Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: LinearProgressIndicator(minHeight: 2),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // Pagination also watches only TableProvider
+          Consumer<TableProvider>(
+            builder: (context, tp, _) => PaginationControls(
+              currentPage: tp.currentPage,
+              totalPages: tp.totalPages,
+              pageSize: tp.pageSize,
+              onPageChange: (page) => tp.setPage(page),
+              onPageSizeChange: (size) => tp.setPageSize(size),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -224,8 +266,19 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           ),
           TextButton(
             onPressed: () async {
-              await context.read<TableProvider>().deleteItem(id);
-              Navigator.pop(context);
+              try {
+                await context.read<TableProvider>().deleteItem(id);
+                if (context.mounted) Navigator.pop(context);
+              } catch (_) {
+                if (!context.mounted) return;
+                showDialog(
+                  context: context,
+                  builder: (_) => const AlertDialog(
+                    title: Text('Error'),
+                    content: Text('Something went wrong. Please try again.'),
+                  ),
+                );
+              }
             },
             child: const Text('Delete'),
           ),

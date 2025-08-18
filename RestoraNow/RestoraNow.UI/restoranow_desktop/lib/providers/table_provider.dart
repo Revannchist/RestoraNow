@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+
 import '../models/table_model.dart';
-import '../core/table_api_service.dart';
 import '../models/search_result.dart';
+import '../core/table_api_service.dart';
+import '../../core/api_exception.dart'; // <-- small class: ApiException(int statusCode, String message)
 
 class TableProvider with ChangeNotifier {
   final TableApiService _apiService = TableApiService();
 
+  // ---- state ---------------------------------------------------------------
   List<TableModel> _items = [];
   bool _isLoading = false;
   String? _error;
@@ -18,15 +21,17 @@ class TableProvider with ChangeNotifier {
   int _currentPage = 1;
   int _pageSize = 10;
 
-  int get currentPage => _currentPage;
-  int get pageSize => _pageSize;
-  int get totalPages => (_totalCount / _pageSize).ceil();
-
+  // ---- getters -------------------------------------------------------------
   List<TableModel> get items => _items;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  int get totalCount => _totalCount;
 
+  int get currentPage => _currentPage;
+  int get pageSize => _pageSize;
+  int get totalCount => _totalCount;
+  int get totalPages => (_totalCount / _pageSize).ceil();
+
+  // ---- paging / filters ----------------------------------------------------
   void setPage(int page) {
     _currentPage = page;
     fetchItems();
@@ -38,11 +43,7 @@ class TableProvider with ChangeNotifier {
     fetchItems();
   }
 
-  void setFilters({
-    int? restaurantId,
-    int? capacity,
-    bool? isAvailable,
-  }) {
+  void setFilters({int? restaurantId, int? capacity, bool? isAvailable}) {
     _restaurantIdFilter = restaurantId;
     _capacityFilter = capacity;
     _isAvailableFilter = isAvailable;
@@ -50,6 +51,7 @@ class TableProvider with ChangeNotifier {
     fetchItems();
   }
 
+  // ---- queries -------------------------------------------------------------
   Future<void> fetchItems({String? sortBy, bool ascending = true}) async {
     _isLoading = true;
     _error = null;
@@ -57,16 +59,12 @@ class TableProvider with ChangeNotifier {
 
     try {
       final filter = <String, String>{};
-
-      if (_restaurantIdFilter != null) {
+      if (_restaurantIdFilter != null)
         filter['RestaurantId'] = _restaurantIdFilter.toString();
-      }
-      if (_capacityFilter != null) {
+      if (_capacityFilter != null)
         filter['Capacity'] = _capacityFilter.toString();
-      }
-      if (_isAvailableFilter != null) {
+      if (_isAvailableFilter != null)
         filter['IsAvailable'] = _isAvailableFilter.toString();
-      }
 
       final SearchResult<TableModel> result = await _apiService.get(
         filter: filter,
@@ -79,6 +77,7 @@ class TableProvider with ChangeNotifier {
       _items = result.items;
       _totalCount = result.totalCount;
     } catch (e) {
+      // Keep list screens resilient; show an inline error if you want.
       _error = e.toString();
     } finally {
       _isLoading = false;
@@ -87,56 +86,45 @@ class TableProvider with ChangeNotifier {
   }
 
   Future<TableModel?> createItem(TableModel item) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+    // no _isLoading toggles here; the dialog controls its own spinner
     try {
       final created = await _apiService.insert(item.toRequestJson());
-      _items.add(created);
+      _items.insert(0, created);
+      _totalCount++;
+      notifyListeners(); // only on success
       return created;
-    } catch (e) {
-      _error = e.toString();
-      return null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    } on ApiException {
+      rethrow; // let the dialog show the SnackBar
+    } catch (_) {
+      rethrow;
     }
   }
 
   Future<void> updateItem(TableModel item) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
-      final TableModel updated = await _apiService.update(
-        item.id,
-        item.toRequestJson(),
-      );
-      final index = _items.indexWhere((i) => i.id == item.id);
-      if (index != -1) _items[index] = updated;
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      final updated = await _apiService.update(item.id, item.toRequestJson());
+      final i = _items.indexWhere((t) => t.id == item.id);
+      if (i != -1) {
+        _items[i] = updated;
+        notifyListeners(); // only on success
+      }
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      rethrow;
     }
   }
 
   Future<void> deleteItem(int id) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
       await _apiService.delete(id);
-      _items.removeWhere((i) => i.id == id);
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      _items.removeWhere((t) => t.id == id);
+      if (_totalCount > 0) _totalCount--;
+      notifyListeners(); // only on success
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      rethrow;
     }
   }
 }

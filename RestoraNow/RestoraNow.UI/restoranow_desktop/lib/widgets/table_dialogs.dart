@@ -1,9 +1,15 @@
+// lib/widgets/table_dialogs.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/table_model.dart';
 import '../providers/table_provider.dart';
+import '../providers/restaurant_provider.dart';
+import '../../core/api_exception.dart';
+
+// SnackBar helpers (bottom toast-like messages)
+import 'package:restoranow_desktop/widgets/helpers/error_dialog_helper.dart';
 
 /// CREATE TABLE
 void showCreateTableDialog(BuildContext context) {
@@ -18,17 +24,20 @@ void showCreateTableDialog(BuildContext context) {
   final capacityFocus    = FocusNode();
   final locationFocus    = FocusNode();
 
-  bool isAvailable = true;
+  // Use the *page* context for SnackBars (not the dialog context)
+  final rootCtx = context;
 
-  // touch + validity state (blur-to-validate like your menu create)
-  bool tableNumberTouched = false;
-  bool capacityTouched    = false;
-  bool locationTouched    = false;
-  bool isFormValid        = false;
+  bool isAvailable   = true;
+  bool isSubmitting  = false;
+  bool isFormValid   = false;
+  bool tnTouched     = false;
+  bool capTouched    = false;
+  bool locTouched    = false;
+  bool listenersBound = false;
 
   void updateFormValidity(StateSetter setState) {
-    final tn = int.tryParse(tableNumberController.text.trim());
-    final cp = int.tryParse(capacityController.text.trim());
+    final tn  = int.tryParse(tableNumberController.text.trim());
+    final cp  = int.tryParse(capacityController.text.trim());
     final loc = locationController.text.trim();
 
     final tnValid  = tn != null && tn > 0;
@@ -40,30 +49,32 @@ void showCreateTableDialog(BuildContext context) {
 
   showDialog(
     context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) {
-        // blur listeners (same pattern as your menu dialog)
-        tableNumberFocus.addListener(() {
-          if (!tableNumberFocus.hasFocus) {
-            tableNumberTouched = true;
-            updateFormValidity(setState);
-            _formKey.currentState?.validate();
-          }
-        });
-        capacityFocus.addListener(() {
-          if (!capacityFocus.hasFocus) {
-            capacityTouched = true;
-            updateFormValidity(setState);
-            _formKey.currentState?.validate();
-          }
-        });
-        locationFocus.addListener(() {
-          if (!locationFocus.hasFocus) {
-            locationTouched = true;
-            updateFormValidity(setState);
-            _formKey.currentState?.validate();
-          }
-        });
+    builder: (dialogCtx) => StatefulBuilder(
+      builder: (dialogCtx, setState) {
+        if (!listenersBound) {
+          tableNumberFocus.addListener(() {
+            if (!tableNumberFocus.hasFocus) {
+              tnTouched = true;
+              updateFormValidity(setState);
+              _formKey.currentState?.validate();
+            }
+          });
+          capacityFocus.addListener(() {
+            if (!capacityFocus.hasFocus) {
+              capTouched = true;
+              updateFormValidity(setState);
+              _formKey.currentState?.validate();
+            }
+          });
+          locationFocus.addListener(() {
+            if (!locationFocus.hasFocus) {
+              locTouched = true;
+              updateFormValidity(setState);
+              _formKey.currentState?.validate();
+            }
+          });
+          listenersBound = true;
+        }
 
         return AlertDialog(
           title: const Text('Create Table'),
@@ -76,16 +87,17 @@ void showCreateTableDialog(BuildContext context) {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Table Number (required, positive int)
                     TextFormField(
                       controller: tableNumberController,
                       focusNode: tableNumberFocus,
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) => FocusScope.of(dialogCtx).requestFocus(capacityFocus),
                       decoration: const InputDecoration(labelText: 'Table Number'),
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (_) => updateFormValidity(setState),
                       validator: (value) {
-                        if (!tableNumberTouched) return null;
+                        if (!tnTouched) return null;
                         final v = value?.trim() ?? '';
                         if (v.isEmpty) return 'Table number is required.';
                         final n = int.tryParse(v);
@@ -94,17 +106,17 @@ void showCreateTableDialog(BuildContext context) {
                       },
                     ),
                     const SizedBox(height: 12),
-
-                    // Capacity (required, >= 1)
                     TextFormField(
                       controller: capacityController,
                       focusNode: capacityFocus,
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) => FocusScope.of(dialogCtx).requestFocus(locationFocus),
                       decoration: const InputDecoration(labelText: 'Capacity'),
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (_) => updateFormValidity(setState),
                       validator: (value) {
-                        if (!capacityTouched) return null;
+                        if (!capTouched) return null;
                         final v = value?.trim() ?? '';
                         if (v.isEmpty) return 'Capacity is required.';
                         final n = int.tryParse(v);
@@ -113,16 +125,15 @@ void showCreateTableDialog(BuildContext context) {
                       },
                     ),
                     const SizedBox(height: 12),
-
-                    // Location (required, max 20)
                     TextFormField(
                       controller: locationController,
                       focusNode: locationFocus,
+                      textInputAction: TextInputAction.done,
                       decoration: const InputDecoration(labelText: 'Location'),
                       maxLength: 20,
                       onChanged: (_) => updateFormValidity(setState),
                       validator: (value) {
-                        if (!locationTouched) return null;
+                        if (!locTouched) return null;
                         final v = value?.trim() ?? '';
                         if (v.isEmpty) return 'Location is required.';
                         if (v.length > 20) return 'Location cannot exceed 20 characters.';
@@ -130,8 +141,6 @@ void showCreateTableDialog(BuildContext context) {
                       },
                     ),
                     const SizedBox(height: 12),
-
-                    // Notes (optional, max 100)
                     TextFormField(
                       controller: notesController,
                       decoration: const InputDecoration(labelText: 'Notes'),
@@ -140,7 +149,6 @@ void showCreateTableDialog(BuildContext context) {
                       onChanged: (_) => updateFormValidity(setState),
                     ),
                     const SizedBox(height: 12),
-
                     CheckboxListTile(
                       title: const Text('Is Available'),
                       value: isAvailable,
@@ -155,14 +163,18 @@ void showCreateTableDialog(BuildContext context) {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
               child: const Text('Cancel'),
             ),
-            // Match menu dialog's Create button style (TextButton)
             TextButton(
-              onPressed: isFormValid
+              onPressed: (isFormValid && !isSubmitting)
                   ? () async {
                       if (!_formKey.currentState!.validate()) return;
+                      setState(() => isSubmitting = true);
+
+                      // Prefer real restaurant id from provider if available
+                      final restaurant   = rootCtx.read<RestaurantProvider>().restaurant;
+                      final restaurantId = restaurant?.id ?? 1;
 
                       final model = TableModel(
                         id: 0,
@@ -170,17 +182,26 @@ void showCreateTableDialog(BuildContext context) {
                         capacity: int.parse(capacityController.text.trim()),
                         location: locationController.text.trim(),
                         isAvailable: isAvailable,
-                        notes: notesController.text.trim().isEmpty
-                            ? null
-                            : notesController.text.trim(),
-                        restaurantId: 1, // adjust if this comes from context
+                        // If your DB column is nullable, you can send null instead of ""
+                        notes: notesController.text.trim().isEmpty ? "" : notesController.text.trim(),
+                        restaurantId: restaurantId,
                       );
 
-                      await context.read<TableProvider>().createItem(model);
-                      if (context.mounted) Navigator.pop(context);
+                      try {
+                        await rootCtx.read<TableProvider>().createItem(model);
+                        if (!dialogCtx.mounted) return;
+                        Navigator.pop(dialogCtx);
+                      } on ApiException catch (e) {
+                        // Bottom SnackBar like login screen
+                        showApiErrorSnack(rootCtx, e);
+                        setState(() => isSubmitting = false);
+                      } catch (_) {
+                        showSnackMessage(rootCtx, 'Something went wrong. Please try again.');
+                        setState(() => isSubmitting = false);
+                      }
                     }
                   : null,
-              child: const Text('Create'),
+              child: isSubmitting ? const Text('Creating...') : const Text('Create'),
             ),
           ],
         );
@@ -198,12 +219,16 @@ void showUpdateTableDialog(BuildContext context, TableModel table) {
   final locationController    = TextEditingController(text: table.location ?? '');
   final notesController       = TextEditingController(text: table.notes ?? '');
 
-  bool isAvailable = table.isAvailable;
-  bool isFormValid = true; // prefilled
+  // Use the *page* context for SnackBars (not the dialog context)
+  final rootCtx = context;
+
+  bool isAvailable  = table.isAvailable;
+  bool isFormValid  = true;
+  bool isSubmitting = false;
 
   void updateFormValidity(StateSetter setState) {
-    final tn = int.tryParse(tableNumberController.text.trim());
-    final cp = int.tryParse(capacityController.text.trim());
+    final tn  = int.tryParse(tableNumberController.text.trim());
+    final cp  = int.tryParse(capacityController.text.trim());
     final loc = locationController.text.trim();
 
     final tnValid  = tn != null && tn > 0;
@@ -215,15 +240,15 @@ void showUpdateTableDialog(BuildContext context, TableModel table) {
 
   showDialog(
     context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
+    builder: (dialogCtx) => StatefulBuilder(
+      builder: (dialogCtx, setState) => AlertDialog(
         title: const Text('Update Table'),
         content: SingleChildScrollView(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
             child: Form(
               key: _formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction, // like your menu Update
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -292,14 +317,14 @@ void showUpdateTableDialog(BuildContext context, TableModel table) {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
             child: const Text('Cancel'),
           ),
-          // Match menu dialog's Update button style (TextButton)
           TextButton(
-            onPressed: isFormValid
+            onPressed: (isFormValid && !isSubmitting)
                 ? () async {
                     if (!_formKey.currentState!.validate()) return;
+                    setState(() => isSubmitting = true);
 
                     final updated = TableModel(
                       id: table.id,
@@ -307,17 +332,24 @@ void showUpdateTableDialog(BuildContext context, TableModel table) {
                       capacity: int.parse(capacityController.text.trim()),
                       location: locationController.text.trim(),
                       isAvailable: isAvailable,
-                      notes: notesController.text.trim().isNotEmpty
-                          ? notesController.text.trim()
-                          : null,
+                      notes: notesController.text.trim().isEmpty ? "" : notesController.text.trim(),
                       restaurantId: table.restaurantId,
                     );
 
-                    await context.read<TableProvider>().updateItem(updated);
-                    if (context.mounted) Navigator.pop(context);
+                    try {
+                      await rootCtx.read<TableProvider>().updateItem(updated);
+                      if (!dialogCtx.mounted) return;
+                      Navigator.pop(dialogCtx);
+                    } on ApiException catch (e) {
+                      showApiErrorSnack(rootCtx, e);
+                      setState(() => isSubmitting = false);
+                    } catch (_) {
+                      showSnackMessage(rootCtx, 'Something went wrong. Please try again.');
+                      setState(() => isSubmitting = false);
+                    }
                   }
                 : null,
-            child: const Text('Update'),
+            child: isSubmitting ? const Text('Updating...') : const Text('Update'),
           ),
         ],
       ),

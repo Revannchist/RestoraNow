@@ -1,20 +1,25 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'auth_provider.dart';
-import '../../models/search_result.dart';
+import '../../../models/search_result.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../../core/api_exception.dart';
+import '../../../core/api_exception.dart';
 
 abstract class BaseProvider<T> with ChangeNotifier {
   final String _endpoint;
 
-  static final String _baseUrl =
-      dotenv.env['API_URL'] ?? 'http://localhost:5294/api/';
+  static final String _baseUrlRaw =
+      dotenv.env['API_URL'] ?? 'http://10.0.2.2:5294/api/';
+  static final String _baseUrl = _baseUrlRaw.endsWith('/')
+      ? _baseUrlRaw
+      : '$_baseUrlRaw/';
+
   BaseProvider(this._endpoint);
 
   T fromJson(Map<String, dynamic> json);
-
 
   Future<SearchResult<T>> get({
     Map<String, dynamic>? filter,
@@ -34,7 +39,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
     );
 
     _logRequest("GET", uri);
-    final res = await http.get(uri, headers: _createHeaders());
+    final res = await _send(() => http.get(uri, headers: _createHeaders()));
     _logResponse(res);
 
     if (_isSuccess(res.statusCode)) {
@@ -50,7 +55,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
   Future<T> getById(int id) async {
     final uri = Uri.parse("$_baseUrl$_endpoint/$id");
     _logRequest("GET", uri);
-    final res = await http.get(uri, headers: _createHeaders());
+    final res = await _send(() => http.get(uri, headers: _createHeaders()));
     _logResponse(res);
 
     if (_isSuccess(res.statusCode)) {
@@ -63,7 +68,9 @@ abstract class BaseProvider<T> with ChangeNotifier {
     final uri = Uri.parse("$_baseUrl$_endpoint");
     final body = jsonEncode(request);
     _logRequest("POST", uri, body: body);
-    final res = await http.post(uri, headers: _createHeaders(), body: body);
+    final res = await _send(
+      () => http.post(uri, headers: _createHeaders(), body: body),
+    );
     _logResponse(res);
 
     if (_isSuccess(res.statusCode)) {
@@ -76,7 +83,9 @@ abstract class BaseProvider<T> with ChangeNotifier {
     final uri = Uri.parse("$_baseUrl$_endpoint/$id");
     final body = jsonEncode(request);
     _logRequest("PUT", uri, body: body);
-    final res = await http.put(uri, headers: _createHeaders(), body: body);
+    final res = await _send(
+      () => http.put(uri, headers: _createHeaders(), body: body),
+    );
     _logResponse(res);
 
     if (_isSuccess(res.statusCode)) {
@@ -88,7 +97,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
   Future<void> delete(int id) async {
     final uri = Uri.parse("$_baseUrl$_endpoint/$id");
     _logRequest("DELETE", uri);
-    final res = await http.delete(uri, headers: _createHeaders());
+    final res = await _send(() => http.delete(uri, headers: _createHeaders()));
     _logResponse(res);
 
     if (!_isSuccess(res.statusCode)) {
@@ -96,7 +105,18 @@ abstract class BaseProvider<T> with ChangeNotifier {
     }
   }
 
-  // --------------------- Headers ---------------------
+  // Centralized send with timeouts & network errors
+  Future<http.Response> _send(Future<http.Response> Function() fn) async {
+    try {
+      return await fn().timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      throw ApiException(408, 'Request timed out. Check your network.');
+    } on SocketException catch (e) {
+      throw ApiException(503, 'Network error: ${e.message}');
+    } catch (e) {
+      throw ApiException(500, 'Unexpected error: $e');
+    }
+  }
 
   Map<String, String> _createHeaders() {
     final token = AuthProvider.token;
@@ -107,8 +127,6 @@ abstract class BaseProvider<T> with ChangeNotifier {
     };
   }
 
-  // --------------------- Error handling ---------------------
-
   bool _isSuccess(int code) => code >= 200 && code < 300;
 
   Never _throwApi(http.Response res) {
@@ -116,22 +134,16 @@ abstract class BaseProvider<T> with ChangeNotifier {
     throw ApiException(res.statusCode, message);
   }
 
-  //middleware returns either:
-  // - { "message": "..." }
-  // - { "errors": { email:[], phone:[], general:[] } }
   String _extractErrorMessage(http.Response res) {
     try {
       final body = jsonDecode(res.body);
 
       if (body is Map) {
-        // Preferred: simple "message"
         final msg = body['message'];
         if (msg is String && msg.trim().isNotEmpty) return msg;
 
-        // Validation block
         final errors = body['errors'];
         if (errors is Map) {
-          // Flatten & pick first non-empty string
           for (final entry in errors.entries) {
             final list = entry.value;
             if (list is List) {
@@ -142,17 +154,11 @@ abstract class BaseProvider<T> with ChangeNotifier {
               }
             }
           }
-          // Fallback if arrays exist but empty
           return 'Validation failed.';
         }
       }
-
-      // Body is non-empty but not in known shape
       if (res.body.isNotEmpty) return res.body;
-    } catch (_) {
-      // Not JSON or parse failed
-    }
-
+    } catch (_) {}
     return 'Error ${res.statusCode}: ${res.reasonPhrase ?? 'Request failed'}';
   }
 
@@ -161,8 +167,6 @@ abstract class BaseProvider<T> with ChangeNotifier {
     if (decoded is Map<String, dynamic>) return decoded;
     throw ApiException(500, 'Unexpected response shape.');
   }
-
-  // --------------------- Logging ---------------------
 
   void _logRequest(String method, Uri uri, {String? body}) {
     debugPrint("[$method] $uri");
@@ -173,8 +177,6 @@ abstract class BaseProvider<T> with ChangeNotifier {
     debugPrint("Response: ${response.statusCode}");
     debugPrint(response.body);
   }
-
-  // --------------------- Extra helpers you already had ---------------------
 
   @protected
   Uri buildApiUri(String relativePath, {Map<String, String>? query}) {
@@ -192,7 +194,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
   }) async {
     final uri = buildApiUri(relativePath, query: query);
     _logRequest("GET", uri);
-    final res = await http.get(uri, headers: _createHeaders());
+    final res = await _send(() => http.get(uri, headers: _createHeaders()));
     _logResponse(res);
     if (_isSuccess(res.statusCode)) return jsonDecode(res.body);
     _throwApi(res);

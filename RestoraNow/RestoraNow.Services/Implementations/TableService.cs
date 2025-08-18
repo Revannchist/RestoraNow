@@ -21,8 +21,8 @@ namespace RestoraNow.Services.Implementations
 
         protected override IQueryable<Table> ApplyFilter(IQueryable<Table> query, TableSearchModel search)
         {
-            if (search.RestaurantId.HasValue)
-                query = query.Where(t => t.RestaurantId == search.RestaurantId.Value);
+            //if (search.RestaurantId.HasValue)
+            //    query = query.Where(t => t.RestaurantId == search.RestaurantId.Value);
 
             if (search.Capacity.HasValue)
                 query = query.Where(t => t.Capacity >= search.Capacity.Value);

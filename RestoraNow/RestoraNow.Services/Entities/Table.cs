@@ -22,7 +22,7 @@ namespace RestoraNow.Services.Entities
         public bool IsAvailable { get; set; } = true;
 
         [MaxLength(500)]
-        public string Notes { get; set; }
+        public string? Notes { get; set; }
 
         public int RestaurantId { get; set; }
 
