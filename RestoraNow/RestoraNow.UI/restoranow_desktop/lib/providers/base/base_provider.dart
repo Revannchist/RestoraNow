@@ -15,7 +15,6 @@ abstract class BaseProvider<T> with ChangeNotifier {
 
   T fromJson(Map<String, dynamic> json);
 
-
   Future<SearchResult<T>> get({
     Map<String, dynamic>? filter,
     int page = 1,
@@ -174,7 +173,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
     debugPrint(response.body);
   }
 
-  // --------------------- Extra helpers you already had ---------------------
+  // --------------------- Extra helpers ---------------------
 
   @protected
   Uri buildApiUri(String relativePath, {Map<String, String>? query}) {

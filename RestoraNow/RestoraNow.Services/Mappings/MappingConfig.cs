@@ -1,5 +1,6 @@
 ﻿using Mapster;
 using RestoraNow.Model.Responses;
+using RestoraNow.Model.Responses.Mobile.User;
 using RestoraNow.Model.Responses.Order;
 using RestoraNow.Services.Entities;
 
@@ -22,17 +23,10 @@ namespace RestoraNow.Services.Mappings
                 //.Map(dest => dest.RestaurantName, src => src.Restaurant.Name)
                 .IgnoreNullValues(true);
 
-
-
             TypeAdapterConfig<Table, TableResponse>.NewConfig()
                 .Map(dest => dest.RestaurantName, src => src.Restaurant.Name);
 
-
-
-
             TypeAdapterConfig<UserImage, UserImageResponse>.NewConfig();
-
-
 
             //Reservation
             TypeAdapterConfig<Reservation, ReservationResponse>.NewConfig()
@@ -40,13 +34,9 @@ namespace RestoraNow.Services.Mappings
                 .Map(dest => dest.TableNumber, src => src.Table != null ? src.Table.TableNumber.ToString() : "Unknown Table")
                 .Map(dest => dest.ReservationTime, src => src.ReservationTime.ToString(@"hh\:mm"));
 
-
-
-
             //Favorites
             TypeAdapterConfig<Favorite, FavoriteResponse>.NewConfig()
                 .Map(dest => dest.MenuItemName, src => src.MenuItem.Name);
-
 
             // User -> UserResponse
             TypeAdapterConfig<User, UserResponse>.NewConfig()
@@ -66,7 +56,14 @@ namespace RestoraNow.Services.Mappings
                 .Map(d => d.Total, s => s.OrderItems.Sum(i => i.UnitPrice * i.Quantity));
 
 
-            // Other mappings incoming...
+            // Mobile
+
+            TypeAdapterConfig<User, MeResponse>
+                .NewConfig()
+                .Map(dest => dest.ImageUrl, src => src.Image != null ? src.Image.Url : null)
+                .Map(dest => dest.Username, src => src.UserName);
+
+
         }
 
 

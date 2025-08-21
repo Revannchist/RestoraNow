@@ -4,9 +4,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'theme/theme.dart';
 import 'providers/base/auth_provider.dart';
+import 'providers/user_provider.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/profile_screen.dart';
 
 class Env {
   static String get apiUrl {
@@ -31,7 +33,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+      ],
       child: MaterialApp(
         title: 'RestoraNow Mobile',
         theme: AppTheme.mobileLightTheme,
@@ -41,6 +46,7 @@ class MyApp extends StatelessWidget {
         routes: {
           '/login': (_) => const LoginScreen(),
           '/home': (_) => const HomeScreen(),
+          '/profile': (_) => const ProfileScreen(),
         },
       ),
     );

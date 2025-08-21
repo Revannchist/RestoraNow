@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RestoraNow.Model.Base;
+using RestoraNow.Model.Requests.Mobile.User;
 using RestoraNow.Model.Requests.User;
 using RestoraNow.Model.Responses;
+using RestoraNow.Model.Responses.Mobile.User;
 using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.BaseServices;
 using RestoraNow.Services.Data;
@@ -324,5 +326,57 @@ namespace RestoraNow.Services.Implementations
                 TotalCount = totalCount
             };
         }
+
+
+        //Mobile user profile 
+        public async Task<MeResponse> GetMeAsync(int userId)
+        {
+            var userResp = await GetByIdAsync(userId)
+                          ?? throw new KeyNotFoundException("User not found.");
+            return _mapper.Map<MeResponse>(userResp);
+        }
+
+        public async Task<MeResponse> UpdateMeAsync(int userId, MeUpdateRequest request)
+        {
+            var update = _mapper.Map<UserUpdateRequest>(request);
+            update.Roles = null;
+            update.IsActive = null;
+            update.Password = null;
+            update.Email = null;
+
+            var updated = await UpdateAsync(userId, update)
+                        ?? throw new KeyNotFoundException("User not found.");
+            return _mapper.Map<MeResponse>(updated);
+        }
+
+        public async Task ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                       ?? throw new KeyNotFoundException("User not found.");
+
+            var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+            if (!result.Succeeded)
+                throw new ValidationException(string.Join("; ", result.Errors.Select(e => e.Description)));
+        }
+
+        public async Task BeginChangeEmailAsync(int userId, string newEmail, string? currentPassword)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                       ?? throw new KeyNotFoundException("User not found.");
+
+            if (!string.IsNullOrEmpty(currentPassword))
+            {
+                var ok = await _userManager.CheckPasswordAsync(user, currentPassword);
+                if (!ok) throw new UnauthorizedAccessException("Invalid password.");
+            }
+
+            var token = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+            var changed = await _userManager.ChangeEmailAsync(user, newEmail, token);
+            if (!changed.Succeeded)
+                throw new ValidationException(string.Join("; ", changed.Errors.Select(e => e.Description)));
+
+            await _userManager.SetUserNameAsync(user, newEmail); // if email == username
+        }
+
     }
 }

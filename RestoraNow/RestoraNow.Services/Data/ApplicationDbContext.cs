@@ -59,6 +59,19 @@ namespace RestoraNow.Services.Data
                 .HasOne(oi => oi.MenuItem)
                 .WithMany(mi => mi.OrderItems)
                 .HasForeignKey(oi => oi.MenuItemId);
+
+            //-------------
+            /*
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Image)
+                .WithOne(i => i.User)
+                .HasForeignKey<UserImage>(i => i.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserImage>()
+                .HasIndex(i => i.UserId)
+                .IsUnique();
+            */
         }
     }
 }
