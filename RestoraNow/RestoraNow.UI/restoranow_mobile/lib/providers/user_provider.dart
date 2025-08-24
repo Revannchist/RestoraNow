@@ -5,7 +5,7 @@ import 'dart:typed_data';        // <-- add
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // optional if you resolve relative URLs
 import '../core/user_api_service.dart';
-import '../models/user_models.dart';
+import '../models/user_model.dart';
 
 class UserProvider with ChangeNotifier {
   final UserApiService _apiService = UserApiService();

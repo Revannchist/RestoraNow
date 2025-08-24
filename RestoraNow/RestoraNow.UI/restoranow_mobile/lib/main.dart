@@ -5,10 +5,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/theme.dart';
 import 'providers/base/auth_provider.dart';
 import 'providers/user_provider.dart';
+import 'providers/reservation_provider.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/reservations_screen.dart';
 
 class Env {
   static String get apiUrl {
@@ -36,6 +38,8 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => ReservationProvider()),
+
       ],
       child: MaterialApp(
         title: 'RestoraNow Mobile',
@@ -47,6 +51,8 @@ class MyApp extends StatelessWidget {
           '/login': (_) => const LoginScreen(),
           '/home': (_) => const HomeScreen(),
           '/profile': (_) => const ProfileScreen(),
+          '/reservations': (_) => const ReservationsScreen(),
+          
         },
       ),
     );

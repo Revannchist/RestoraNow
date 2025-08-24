@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:typed_data';
 
 import '../theme/theme.dart';
 import '../providers/base/auth_provider.dart';
 import '../providers/user_provider.dart';
+import '../widgets/avatar_view.dart';
 
 class MainLayout extends StatefulWidget {
   final String title;
   final Widget child;
+  final List<Widget>? actions;
 
-  const MainLayout({super.key, required this.title, required this.child});
+  /// Force a back button even if the navigator can't pop (rarely needed).
+  final bool forceBack;
+
+  const MainLayout({
+    super.key,
+    required this.title,
+    required this.child,
+    this.actions,
+    this.forceBack = false,
+  });
 
   @override
   State<MainLayout> createState() => _MainLayoutState();
@@ -20,13 +32,34 @@ class _MainLayoutState extends State<MainLayout> {
   bool _mePrefetched = false;
   bool _authRedirected = false;
 
+  // Top-level destinations shown in the drawer.
+  static const _navItems = <_NavItem>[
+    _NavItem(
+      label: 'Home',
+      route: '/home',
+      icon: Icons.space_dashboard_outlined,
+    ),
+    _NavItem(label: 'Menu', route: '/menu', icon: Icons.menu_book_outlined),
+    _NavItem(
+      label: 'Reservations',
+      route: '/reservations',
+      icon: Icons.event_seat_outlined,
+    ),
+    _NavItem(
+      label: 'Orders',
+      route: '/orders',
+      icon: Icons.receipt_long_outlined,
+    ),
+  ];
+
+  Set<String> get _topLevelRoutes => _navItems.map((e) => e.route).toSet();
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
     final auth = context.watch<AuthProvider>();
 
-    // Auth guard: redirect once if unauthenticated
+    // Auth guard (run once)
     if (!auth.isAuthenticated && !_authRedirected) {
       _authRedirected = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -36,25 +69,11 @@ class _MainLayoutState extends State<MainLayout> {
       return;
     }
 
-    // Prefetch profile once when authenticated
+    // Prefetch "me" (once after auth)
     if (auth.isAuthenticated && !_mePrefetched) {
       _mePrefetched = true;
       context.read<UserProvider>().fetchMe();
     }
-  }
-
-  Future<void> _go(String route) async {
-    // Close drawer if open
-    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-      Navigator.of(context).pop();
-    }
-    final current = ModalRoute.of(context)?.settings.name;
-    if (current == route) return;
-
-    // Small delay for smoother drawer -> route transition
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    if (!mounted) return;
-    Navigator.pushNamed(context, route); // <-- push (keeps back stack)
   }
 
   Future<void> _logout() async {
@@ -63,32 +82,78 @@ class _MainLayoutState extends State<MainLayout> {
     Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
   }
 
+  void _toggleDrawer() {
+    final isOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+    if (isOpen) {
+      Navigator.of(context).pop();
+    } else {
+      _scaffoldKey.currentState?.openDrawer();
+    }
+  }
+
+  Future<void> _navigateTo(String route) async {
+    // close drawer first if open
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.of(context).pop();
+    }
+
+    final current = ModalRoute.of(context)?.settings.name;
+    if (current == route) return;
+
+    // Small delay for smoother drawer close -> page transition
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (!mounted) return;
+
+    // For top-level destinations, replace to avoid stacking duplicates.
+    if (_topLevelRoutes.contains(route)) {
+      Navigator.pushReplacementNamed(context, route);
+    } else {
+      Navigator.pushNamed(context, route);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final me = context.watch<UserProvider>().currentUser;
+    final userProvider = context.watch<UserProvider>();
+    final me = userProvider.currentUser;
+
+    final initials = _initialsFrom(me?.firstName, me?.lastName);
+    final fullName = _fullNameFrom(me?.firstName, me?.lastName);
+
+    final currentRoute = ModalRoute.of(context)?.settings.name;
+    final canPop = Navigator.of(context).canPop() || widget.forceBack;
 
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(widget.title),
-        leading: IconButton(
-          tooltip: 'Menu',
-          icon: const Icon(Icons.menu),
-          onPressed: () {
-            final isOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
-            if (isOpen) {
-              Navigator.of(context).pop();
-            } else {
-              _scaffoldKey.currentState?.openDrawer();
-            }
-          },
-        ),
+
+        // Back if there is a stack to pop; otherwise menu.
+        leading: canPop
+            ? BackButton(
+                onPressed: () {
+                  // If drawer is open for any reason, close it first.
+                  if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+                    Navigator.of(context).pop();
+                    return;
+                  }
+                  Navigator.maybePop(context);
+                },
+              )
+            : IconButton(
+                tooltip: 'Menu',
+                icon: const Icon(Icons.menu),
+                onPressed: _toggleDrawer,
+              ),
+
         actions: [
+          ...(widget.actions ?? const []),
           IconButton(
             icon: const Icon(Icons.account_circle),
             tooltip: 'Profile',
-            onPressed: () => _go('/profile'),
+            onPressed: () => _navigateTo('/profile'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -97,28 +162,34 @@ class _MainLayoutState extends State<MainLayout> {
           ),
         ],
       ),
+
+      // Drawer only really matters on top-level pages.
       drawer: Drawer(
         child: SafeArea(
           child: _AppDrawer(
-            meInitials: _initialsFromMe(me?.firstName, me?.lastName),
-            meFullName: _fullNameFromMe(me?.firstName, me?.lastName),
-            meImageUrl: me?.imageUrl,
-            onSelect: _go,
+            initials: initials,
+            fullName: fullName,
+            avatarBytes: userProvider.avatarBytes,
+            avatarUrl: userProvider.avatarUrl,
+            currentRoute: currentRoute,
+            items: _navItems,
+            onSelect: _navigateTo,
           ),
         ),
       ),
+
       body: SafeArea(child: widget.child),
     );
   }
 
-  String _fullNameFromMe(String? first, String? last) {
+  String _fullNameFrom(String? first, String? last) {
     final f = (first ?? '').trim();
     final l = (last ?? '').trim();
     final full = '$f $l'.trim();
     return full.isEmpty ? 'My Profile' : full;
   }
 
-  String _initialsFromMe(String? first, String? last) {
+  String _initialsFrom(String? first, String? last) {
     final f = (first ?? '').trim();
     final l = (last ?? '').trim();
     if (f.isEmpty && l.isEmpty) return '?';
@@ -130,30 +201,25 @@ class _MainLayoutState extends State<MainLayout> {
 
 class _AppDrawer extends StatelessWidget {
   const _AppDrawer({
-    required this.meInitials,
-    required this.meFullName,
-    required this.meImageUrl,
+    required this.initials,
+    required this.fullName,
+    required this.avatarBytes,
+    required this.avatarUrl,
+    required this.currentRoute,
+    required this.items,
     required this.onSelect,
   });
 
-  final String meInitials;
-  final String meFullName;
-  final String? meImageUrl;
+  final String initials;
+  final String fullName;
+  final Uint8List? avatarBytes;
+  final String? avatarUrl;
+  final String? currentRoute;
+  final List<_NavItem> items;
   final void Function(String route) onSelect;
 
   @override
   Widget build(BuildContext context) {
-    final items = <_NavItem>[
-      _NavItem('Home', '/home', Icons.space_dashboard_outlined),
-      _NavItem('Menu', '/menu', Icons.menu_book_outlined),
-      _NavItem('Reservations', '/reservations', Icons.event_seat_outlined),
-      _NavItem('Orders', '/orders', Icons.receipt_long_outlined),
-
-      // _NavItem('Settings',  '/settings',     Icons.settings_outlined),
-    ];
-
-    final currentRoute = ModalRoute.of(context)?.settings.name;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -197,20 +263,17 @@ class _AppDrawer extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundImage:
-                      (meImageUrl != null && meImageUrl!.isNotEmpty)
-                      ? NetworkImage(meImageUrl!)
-                      : null,
-                  child: (meImageUrl == null || meImageUrl!.isEmpty)
-                      ? Text(meInitials)
-                      : null,
+                AvatarView(
+                  initials: initials,
+                  imageBytes: avatarBytes,
+                  imageUrl: avatarUrl,
+                  size: 40,
+                  showCameraBadge: false,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    meFullName,
+                    fullName,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
@@ -220,6 +283,7 @@ class _AppDrawer extends StatelessWidget {
             ),
           ),
         ),
+
         const Divider(height: 1),
 
         // Nav items
@@ -231,6 +295,7 @@ class _AppDrawer extends StatelessWidget {
             itemBuilder: (context, i) {
               final item = items[i];
               final selected = currentRoute == item.route;
+
               final bg = selected
                   ? AppTheme.primaryColor.withOpacity(0.08)
                   : Colors.transparent;
@@ -300,5 +365,9 @@ class _NavItem {
   final String label;
   final String route;
   final IconData icon;
-  const _NavItem(this.label, this.route, this.icon);
+  const _NavItem({
+    required this.label,
+    required this.route,
+    required this.icon,
+  });
 }

@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import '../widgets/avatar_view.dart';
 import '../widgets/profile_dialogs.dart';
 import '../providers/user_provider.dart';
-import '../models/user_models.dart';
+import '../models/user_model.dart';
 
 // local helpers
 String _guessMimeFromPath(String path) {

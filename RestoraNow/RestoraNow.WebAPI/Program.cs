@@ -40,6 +40,7 @@ namespace RestoraNow.WebAPI
             builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
             builder.Services.AddScoped<DataSeeder>(); //Data Seeder
+            builder.Services.AddHttpContextAccessor();
 
             // Mapster
             builder.Services.AddMapster();

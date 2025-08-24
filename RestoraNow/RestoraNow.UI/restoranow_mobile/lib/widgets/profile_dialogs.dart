@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'avatar_view.dart';
 import '../../providers/user_provider.dart';
-import '../../models/user_models.dart';
+import '../models/user_model.dart';
 
 void showEditProfileDialog(BuildContext context, MeModel me) {
   final firstNameController = TextEditingController(text: me.firstName);

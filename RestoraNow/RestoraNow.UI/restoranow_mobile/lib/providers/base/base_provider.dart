@@ -220,4 +220,17 @@ abstract class BaseProvider<T> with ChangeNotifier {
     final list = (body as List).cast<Map<String, dynamic>>();
     return list.map(fromJson).toList();
   }
+
+  @protected
+  String get endpoint => _endpoint;
+
+  //PATCH helper for 204 / no-body endpoints (like /cancel)
+  @protected
+  Future<void> patchEmpty(String relativePath) async {
+    final uri = buildApiUri(relativePath);
+    _logRequest("PATCH", uri);
+    final res = await _send(() => http.patch(uri, headers: _createHeaders()));
+    _logResponse(res);
+    if (!_isSuccess(res.statusCode)) _throwApi(res);
+  }
 }

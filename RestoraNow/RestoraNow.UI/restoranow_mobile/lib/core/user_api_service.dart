@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import '../providers/base/base_provider.dart';
 import '../providers/base/auth_provider.dart';
 import '../core/api_exception.dart';
-import '../models/user_models.dart'; // <-- add this
+import '../models/user_model.dart'; // <-- add this
 
 class UserApiService extends BaseProvider<UserModel> {
   UserApiService() : super("User");

@@ -8,7 +8,7 @@ namespace RestoraNow.Model.Requests
     {
         [Required]
         //[Range(1, int.MaxValue, ErrorMessage = "UserId must be a positive number.")]
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
 
         [Required]
         //[Range(1, int.MaxValue, ErrorMessage = "TableId must be a positive number.")]
