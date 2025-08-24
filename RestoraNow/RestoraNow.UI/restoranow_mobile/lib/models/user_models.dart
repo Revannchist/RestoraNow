@@ -1,3 +1,13 @@
+class UserImageModel {
+  final int id;
+  final String url;
+  UserImageModel({required this.id, required this.url});
+
+  factory UserImageModel.fromJson(Map<String, dynamic> json) =>
+      UserImageModel(id: (json['id'] ?? 0) as int, url: json['url'] as String);
+}
+
+// ---------- UserModel (optional if you show avatars there) ----------
 class UserModel {
   final int id;
   final String firstName;
@@ -9,7 +19,12 @@ class UserModel {
   final DateTime? lastLoginAt;
   final String? phoneNumber;
   final List<String> roles;
-  final String? imageUrl;
+
+  // keep nested image if server sometimes sends it
+  final UserImageModel? image;
+
+  // NEW: capture flat imageUrl also
+  final String? imageUrlFlat;
 
   UserModel({
     required this.id,
@@ -22,7 +37,8 @@ class UserModel {
     this.lastLoginAt,
     this.phoneNumber,
     this.roles = const [],
-    this.imageUrl,
+    this.image,
+    this.imageUrlFlat,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
@@ -37,9 +53,11 @@ class UserModel {
         ? DateTime.parse(json['lastLoginAt'] as String)
         : null,
     phoneNumber: json['phoneNumber'] as String?,
-    roles:
-        (json['roles'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-    imageUrl: json['imageUrl'] as String?,
+    roles: (json['roles'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+    image: (json['image'] is Map<String, dynamic>)
+        ? UserImageModel.fromJson(json['image'] as Map<String, dynamic>)
+        : null,
+    imageUrlFlat: json['imageUrl'] as String?, // <— accept flat
   );
 
   Map<String, dynamic> toRequestJson() => {
@@ -49,9 +67,12 @@ class UserModel {
     'phoneNumber': phoneNumber,
     'isActive': isActive,
   };
+
+  // Use whichever exists
+  String? get imageUrl => image?.url ?? imageUrlFlat;
 }
 
-// Mobile "me" response (matches your MeResponse)
+// ---------- MeModel (this is the one your screen uses) ----------
 class MeModel {
   final int id;
   final String firstName;
@@ -59,7 +80,13 @@ class MeModel {
   final String email;
   final String username;
   final String? phoneNumber;
-  final String? imageUrl;
+
+  // nested object if present
+  final UserImageModel? image;
+
+  // NEW: flat field if present
+  final String? imageUrlFlat;
+
   final DateTime createdAt;
   final DateTime? lastLoginAt;
 
@@ -70,7 +97,8 @@ class MeModel {
     required this.email,
     required this.username,
     this.phoneNumber,
-    this.imageUrl,
+    this.image,
+    this.imageUrlFlat,
     required this.createdAt,
     this.lastLoginAt,
   });
@@ -82,10 +110,16 @@ class MeModel {
     email: json['email'] as String,
     username: json['username'] as String,
     phoneNumber: json['phoneNumber'] as String?,
-    imageUrl: json['imageUrl'] as String?,
+    image: (json['image'] is Map<String, dynamic>)
+        ? UserImageModel.fromJson(json['image'] as Map<String, dynamic>)
+        : null,
+    imageUrlFlat: json['imageUrl'] as String?, // <— accept flat
     createdAt: DateTime.parse(json['createdAt'] as String),
     lastLoginAt: json['lastLoginAt'] != null
         ? DateTime.parse(json['lastLoginAt'] as String)
         : null,
   );
+
+  // Single point your UI/provider use
+  String? get imageUrl => image?.url ?? imageUrlFlat;
 }

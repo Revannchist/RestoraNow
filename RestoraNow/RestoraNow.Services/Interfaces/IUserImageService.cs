@@ -7,5 +7,7 @@ namespace RestoraNow.Services.Interfaces
 {
     public interface IUserImageService : ICRUDService<UserImageResponse, UserImageSearchModel, UserImageRequest, UserImageRequest>
     {
+        Task<UserImageResponse> UpsertByUserIdAsync(int userId, string url);
+        Task<bool> DeleteByUserIdAsync(int userId);
     }
 }

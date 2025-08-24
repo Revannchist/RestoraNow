@@ -11,7 +11,6 @@ namespace RestoraNow.Services.Interfaces
     {
         Task<MeResponse> GetMeAsync(int userId);
         Task<MeResponse> UpdateMeAsync(int userId, MeUpdateRequest request);
-
         Task ChangePasswordAsync(int userId, string currentPassword, string newPassword);
         Task BeginChangeEmailAsync(int userId, string newEmail, string? currentPassword);
     }

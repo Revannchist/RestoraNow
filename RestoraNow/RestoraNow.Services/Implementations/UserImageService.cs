@@ -98,5 +98,31 @@ namespace RestoraNow.Services.Implementations
             await _context.SaveChangesAsync();
             return true;
         }
+
+        //Mobile
+
+        public async Task<UserImageResponse> UpsertByUserIdAsync(int userId, string url)
+        {
+            return await InsertAsync(new UserImageRequest { UserId = userId, Url = url });
+        }
+
+        public async Task<bool> DeleteByUserIdAsync(int userId)
+        {
+            var existing = await _context.UserImages
+                .Include(i => i.User)
+                .Where(i => i.UserId == userId)
+                .ToListAsync();
+
+            if (existing.Count == 0) return false;
+
+            foreach (var img in existing)
+            {
+                if (img.User != null) img.User.Image = null;
+                _context.UserImages.Remove(img);
+            }
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }
