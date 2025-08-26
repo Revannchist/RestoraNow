@@ -16,9 +16,9 @@ namespace RestoraNow.Services.Implementations
           IOrderService
     {
         public OrderService(ApplicationDbContext context, IMapper mapper)
-            : base(context, mapper)
-        {
-        }
+            : base(context, mapper) { }
+
+        // ---------- Queries ----------
 
         protected override IQueryable<Order> ApplyFilter(IQueryable<Order> query, OrderSearchModel search)
         {
@@ -37,14 +37,15 @@ namespace RestoraNow.Services.Implementations
             return query;
         }
 
-        protected override IQueryable<Order> AddInclude(IQueryable<Order> query)
-        {
-            return query
-                .Include(o => o.OrderItems).ThenInclude(oi => oi.MenuItem)
-                .Include(o => o.User)
-                .Include(o => o.Reservation)
-                .Include(o => o.Payment);
-        }
+        protected override IQueryable<Order> AddInclude(IQueryable<Order> query) => WithOrderGraph(query);
+
+        private IQueryable<Order> WithOrderGraph(IQueryable<Order> q) =>
+            q.Include(o => o.OrderItems).ThenInclude(oi => oi.MenuItem)
+             .Include(o => o.User)
+             .Include(o => o.Reservation)
+             .Include(o => o.Payment);
+
+        // ---------- CRUD ----------
 
         public override async Task<OrderResponse> InsertAsync(OrderCreateRequest request)
         {
@@ -53,30 +54,17 @@ namespace RestoraNow.Services.Implementations
             if (request.MenuItemIds == null || !request.MenuItemIds.Any())
                 throw new InvalidOperationException("At least one menu item must be selected.");
 
-            // quantity per menuItemId (duplicates => qty)
-            var qtyById = request.MenuItemIds
-                .GroupBy(id => id)
-                .ToDictionary(g => g.Key, g => g.Count());
+            var qtyById = BuildQtyMap(request.MenuItemIds);
 
-            var ids = qtyById.Keys.ToList();
-            var menuRows = await _context.MenuItem
-                .Where(m => ids.Contains(m.Id))
-                .Select(m => new { m.Id, m.Price })
-                .ToListAsync();
-
-            if (menuRows.Count != ids.Count)
-            {
-                var found = menuRows.Select(x => x.Id).ToHashSet();
-                var missing = ids.Where(i => !found.Contains(i));
-                throw new KeyNotFoundException($"Menu items not found: {string.Join(", ", missing)}");
-            }
+            var menuRows = await LoadPricedAndAvailableMenuItemsAsync(qtyById.Keys);
+            EnsureAllRequestedItemsExist(qtyById.Keys, menuRows.Select(m => m.Id));
 
             var order = new Order
             {
                 UserId = request.UserId,
                 ReservationId = request.ReservationId,
                 CreatedAt = DateTime.UtcNow,
-                // Status stays default (Pending)
+                Status = OrderStatus.Pending,
                 OrderItems = new List<OrderItem>()
             };
 
@@ -93,12 +81,7 @@ namespace RestoraNow.Services.Implementations
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
 
-            var saved = await _context.Orders
-                .Include(o => o.OrderItems).ThenInclude(oi => oi.MenuItem)
-                .Include(o => o.User)
-                .Include(o => o.Reservation)
-                .Include(o => o.Payment)
-                .AsNoTracking()
+            var saved = await WithOrderGraph(_context.Orders.AsNoTracking())
                 .FirstAsync(o => o.Id == order.Id);
 
             return _mapper.Map<OrderResponse>(saved);
@@ -115,29 +98,24 @@ namespace RestoraNow.Services.Implementations
 
             await ValidateUserAndReservationAsync(request.UserId, request.ReservationId);
 
+            // Status transitions policy
+            if (!IsValidTransition(order.Status, request.Status))
+                throw new InvalidOperationException($"Invalid status transition {order.Status} → {request.Status}.");
+
+            // If items are being updated, only allow when Pending
             if (request.MenuItemIds == null || !request.MenuItemIds.Any())
-                throw new InvalidOperationException("At least one menu item must be selected.");
+                throw new InvalidOperationException("At least one menu item must be selected for update.");
+
+            if (order.Status != OrderStatus.Pending)
+                throw new InvalidOperationException("Only pending orders can be edited.");
 
             order.UserId = request.UserId;
             order.ReservationId = request.ReservationId;
-            order.Status = request.Status; // <-- apply status from update DTO
+            order.Status = request.Status;
 
-            var qtyById = request.MenuItemIds
-                .GroupBy(i => i)
-                .ToDictionary(g => g.Key, g => g.Count());
-
-            var ids = qtyById.Keys.ToList();
-            var menuRows = await _context.MenuItem
-                .Where(m => ids.Contains(m.Id))
-                .Select(m => new { m.Id, m.Price })
-                .ToListAsync();
-
-            if (menuRows.Count != ids.Count)
-            {
-                var found = menuRows.Select(x => x.Id).ToHashSet();
-                var missing = ids.Where(i => !found.Contains(i));
-                throw new KeyNotFoundException($"Menu items not found: {string.Join(", ", missing)}");
-            }
+            var qtyById = BuildQtyMap(request.MenuItemIds);
+            var menuRows = await LoadPricedAndAvailableMenuItemsAsync(qtyById.Keys);
+            EnsureAllRequestedItemsExist(qtyById.Keys, menuRows.Select(m => m.Id));
 
             // Replace items
             _context.OrderItems.RemoveRange(order.OrderItems);
@@ -156,12 +134,7 @@ namespace RestoraNow.Services.Implementations
 
             await _context.SaveChangesAsync();
 
-            var saved = await _context.Orders
-                .Include(o => o.OrderItems).ThenInclude(oi => oi.MenuItem)
-                .Include(o => o.User)
-                .Include(o => o.Reservation)
-                .Include(o => o.Payment)
-                .AsNoTracking()
+            var saved = await WithOrderGraph(_context.Orders.AsNoTracking())
                 .FirstAsync(o => o.Id == order.Id);
 
             return _mapper.Map<OrderResponse>(saved);
@@ -169,12 +142,7 @@ namespace RestoraNow.Services.Implementations
 
         public override async Task<OrderResponse?> GetByIdAsync(int id)
         {
-            var order = await _context.Orders
-                .Include(o => o.OrderItems).ThenInclude(oi => oi.MenuItem)
-                .Include(o => o.User)
-                .Include(o => o.Reservation)
-                .Include(o => o.Payment)
-                .AsNoTracking()
+            var order = await WithOrderGraph(_context.Orders.AsNoTracking())
                 .FirstOrDefaultAsync(o => o.Id == id);
 
             if (order == null)
@@ -195,6 +163,27 @@ namespace RestoraNow.Services.Implementations
         }
 
         // ---------- Helpers ----------
+
+        private static Dictionary<int, int> BuildQtyMap(IEnumerable<int> ids) =>
+            ids.GroupBy(i => i).ToDictionary(g => g.Key, g => Math.Max(1, g.Count()));
+
+        private async Task<List<(int Id, decimal Price)>> LoadPricedAndAvailableMenuItemsAsync(IEnumerable<int> ids)
+        {
+            var idSet = ids.ToList();
+            return await _context.MenuItem
+                .Where(m => idSet.Contains(m.Id) && m.IsAvailable)
+                .Select(m => new ValueTuple<int, decimal>(m.Id, m.Price))
+                .ToListAsync();
+        }
+
+        private static void EnsureAllRequestedItemsExist(IEnumerable<int> requested, IEnumerable<int> found)
+        {
+            var foundSet = found.ToHashSet();
+            var missing = requested.Where(i => !foundSet.Contains(i)).ToList();
+            if (missing.Count > 0)
+                throw new KeyNotFoundException($"Menu items invalid/unavailable: {string.Join(", ", missing)}");
+        }
+
         private async Task ValidateUserAndReservationAsync(int userId, int? reservationId)
         {
             var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
@@ -204,10 +193,23 @@ namespace RestoraNow.Services.Implementations
             if (reservationId.HasValue)
             {
                 var reservationExists = await _context.Reservations
-                    .AnyAsync(r => r.Id == reservationId.Value);
+                    .AnyAsync(r => r.Id == reservationId.Value /* && r.UserId == userId */);
                 if (!reservationExists)
                     throw new KeyNotFoundException($"Reservation with ID {reservationId} not found.");
             }
         }
+
+        // Allow only sensible movements; always allow Cancelled
+        private static bool IsValidTransition(OrderStatus from, OrderStatus to) =>
+            (from, to) switch
+            {
+                (OrderStatus.Pending, OrderStatus.Preparing) => true,
+                (OrderStatus.Preparing, OrderStatus.Ready) => true,
+                (OrderStatus.Ready, OrderStatus.Completed) => true,
+                (_, OrderStatus.Cancelled) => true,
+                // No-op allowed
+                var x when x.from == x.to => true,
+                _ => false
+            };
     }
 }

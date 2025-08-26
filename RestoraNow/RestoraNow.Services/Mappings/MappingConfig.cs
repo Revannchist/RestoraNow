@@ -1,4 +1,5 @@
-﻿using Mapster;
+﻿using System.Linq;
+using Mapster;
 using RestoraNow.Model.Responses;
 using RestoraNow.Model.Responses.Mobile.User;
 using RestoraNow.Model.Responses.Order;
@@ -10,62 +11,62 @@ namespace RestoraNow.Services.Mappings
     {
         public static void RegisterMappings()
         {
-
             // MenuItem -> MenuItemResponse
             TypeAdapterConfig<MenuItem, MenuItemResponse>.NewConfig()
-                .Map(dest => dest.CategoryName, src => src.Category.Name)
-                .Map(dest => dest.ImageUrls, src => src.Images.Select(img => img.Url).ToList());
+                .Map(d => d.CategoryName, s => s.Category != null ? s.Category.Name : null)
+                .Map(d => d.ImageUrls, s => s.Images != null ? s.Images.Select(img => img.Url).ToList() : new());
 
-
+            // Review -> ReviewResponse
             TypeAdapterConfig<Review, ReviewResponse>.NewConfig()
-                .Map(dest => dest.UserName, src => src.User.FirstName + " " + src.User.LastName)
-                .Map(dest => dest.UserEmail, src => src.User.Email)
-                //.Map(dest => dest.RestaurantName, src => src.Restaurant.Name)
+                .Map(d => d.UserName, s => s.User != null ? (s.User.FirstName + " " + s.User.LastName).Trim() : "Unknown User")
+                .Map(d => d.UserEmail, s => s.User != null ? s.User.Email : null)
                 .IgnoreNullValues(true);
 
+            // Table -> TableResponse
             TypeAdapterConfig<Table, TableResponse>.NewConfig()
-                .Map(dest => dest.RestaurantName, src => src.Restaurant.Name);
+                .Map(d => d.RestaurantName, s => s.Restaurant != null ? s.Restaurant.Name : null);
 
+            // UserImage -> UserImageResponse
             TypeAdapterConfig<UserImage, UserImageResponse>.NewConfig();
 
-            //Reservation
+            // Reservation -> ReservationResponse
             TypeAdapterConfig<Reservation, ReservationResponse>.NewConfig()
-                .Map(dest => dest.UserName, src => src.User != null ? src.User.FirstName + " " + src.User.LastName : "Unknown User")
-                .Map(dest => dest.TableNumber, src => src.Table != null ? src.Table.TableNumber.ToString() : "Unknown Table")
-                .Map(dest => dest.ReservationTime, src => src.ReservationTime.ToString(@"hh\:mm"));
+                .Map(d => d.UserName, s => s.User != null ? (s.User.FirstName + " " + s.User.LastName).Trim() : "Unknown User")
+                .Map(d => d.TableNumber, s => s.Table != null ? s.Table.TableNumber.ToString() : "Unknown Table")
+                .Map(d => d.ReservationTime, s => s.ReservationTime.ToString(@"hh\:mm"));
 
-            //Favorites
+            // Favorite -> FavoriteResponse
             TypeAdapterConfig<Favorite, FavoriteResponse>.NewConfig()
-                .Map(dest => dest.MenuItemName, src => src.MenuItem.Name);
+                .Map(d => d.MenuItemName, s => s.MenuItem != null ? s.MenuItem.Name : null);
 
             // User -> UserResponse
             TypeAdapterConfig<User, UserResponse>.NewConfig()
-                .Map(dest => dest.Username, src => src.UserName)
-                .Map(dest => dest.ImageUrl, src => src.Image != null ? src.Image.Url : null)
-                .Map(dest => dest.Roles, src => new List<string>()); // Initialize empty, will be populated in service
+                .Map(d => d.Username, s => s.UserName)
+                .Map(d => d.ImageUrl, s => s.Image != null ? s.Image.Url : null)
+                .Map(d => d.Roles, s => new List<string>()); // filled in service
 
-            //-------------------------------
-            TypeAdapterConfig<OrderItem, OrderItemResponse>
-    .           NewConfig()
+            // ---------- Orders ----------
+            // OrderItem -> OrderItemResponse
+            TypeAdapterConfig<OrderItem, OrderItemResponse>.NewConfig()
                 .Map(d => d.TotalPrice, s => s.UnitPrice * s.Quantity)
-    .           Map(d => d.MenuItemName, s => s.MenuItem.Name);
+                .Map(d => d.MenuItemName, s => s.MenuItem != null ? s.MenuItem.Name : null);
 
-            TypeAdapterConfig<Order, OrderResponse>
-                .NewConfig()
-                .Map(d => d.UserName, s => (s.User.FirstName + " " + s.User.LastName).Trim())
-                .Map(d => d.Total, s => s.OrderItems.Sum(i => i.UnitPrice * i.Quantity));
+            // Order -> OrderResponse
+            TypeAdapterConfig<Order, OrderResponse>.NewConfig()
+                .Map(d => d.UserName,
+                     s => s.User != null
+                        ? (s.User.FirstName + " " + s.User.LastName).Trim()
+                        : null)
+                .Map(d => d.Status, s => s.Status.ToString()) // enum -> string
+                .Map(d => d.Total, s => s.OrderItems != null
+                                            ? s.OrderItems.Sum(i => i.UnitPrice * i.Quantity)
+                                            : 0m);
 
-
-            // Mobile
-
-            TypeAdapterConfig<User, MeResponse>
-                .NewConfig()
-                .Map(dest => dest.ImageUrl, src => src.Image != null ? src.Image.Url : null)
-                .Map(dest => dest.Username, src => src.UserName);
-
-
+            // ---------- Mobile ----------
+            // User -> MeResponse
+            TypeAdapterConfig<User, MeResponse>.NewConfig()
+                .Map(d => d.ImageUrl, s => s.Image != null ? s.Image.Url : null)
+                .Map(d => d.Username, s => s.UserName);
         }
-
-
     }
 }

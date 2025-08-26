@@ -1,18 +1,23 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:typed_data';
 
 import '../theme/theme.dart';
 import '../providers/base/auth_provider.dart';
 import '../providers/user_provider.dart';
+import '../providers/cart_provider.dart';
 import '../widgets/avatar_view.dart';
+import '../widgets/menu_dialogs.dart';
 
 class MainLayout extends StatefulWidget {
   final String title;
   final Widget child;
   final List<Widget>? actions;
 
-  /// Force a back button even if the navigator can't pop (rarely needed).
+  /// If you’re in a reservation context and want checkout to attach to it.
+  final int? cartReservationId;
+
+  /// Force a back button even if the navigator can't pop.
   final bool forceBack;
 
   const MainLayout({
@@ -20,6 +25,7 @@ class MainLayout extends StatefulWidget {
     required this.title,
     required this.child,
     this.actions,
+    this.cartReservationId,
     this.forceBack = false,
   });
 
@@ -134,7 +140,6 @@ class _MainLayoutState extends State<MainLayout> {
         leading: canPop
             ? BackButton(
                 onPressed: () {
-                  // If drawer is open for any reason, close it first.
                   if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
                     Navigator.of(context).pop();
                     return;
@@ -150,6 +155,10 @@ class _MainLayoutState extends State<MainLayout> {
 
         actions: [
           ...(widget.actions ?? const []),
+
+          // Cart button with badge
+          _CartAction(reservationId: widget.cartReservationId),
+
           IconButton(
             icon: const Icon(Icons.account_circle),
             tooltip: 'Profile',
@@ -163,7 +172,7 @@ class _MainLayoutState extends State<MainLayout> {
         ],
       ),
 
-      // Drawer only really matters on top-level pages.
+      // Drawer only matters on top-level pages.
       drawer: Drawer(
         child: SafeArea(
           child: _AppDrawer(
@@ -356,6 +365,50 @@ class _AppDrawer extends StatelessWidget {
             ).textTheme.labelSmall?.copyWith(color: Colors.grey[600]),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Cart action with live badge; opens bottom sheet cart on tap.
+class _CartAction extends StatelessWidget {
+  final int? reservationId;
+  const _CartAction({this.reservationId});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalQty = context.select<CartProvider, int>((c) => c.totalQty);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          tooltip: 'Cart',
+          icon: const Icon(Icons.shopping_cart_outlined),
+          onPressed: () {
+            showCartSheet(context, reservationId: reservationId);
+          },
+        ),
+        if (totalQty > 0)
+          Positioned(
+            right: 6,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$totalQty',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

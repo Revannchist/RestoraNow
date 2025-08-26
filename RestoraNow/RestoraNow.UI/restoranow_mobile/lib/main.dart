@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:restoranow_mobile/screens/menu_screen.dart';
 
 import 'theme/theme.dart';
 import 'providers/base/auth_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/reservation_provider.dart';
+import 'providers/menu_item_provider.dart';
+import 'providers/cart_provider.dart';
+import 'providers/order_provider.dart';
+import 'providers/order_list_provider.dart';
+import 'providers/menu_item_image_provider.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/reservations_screen.dart';
+import 'screens/orders_screen.dart';
 
 class Env {
   static String get apiUrl {
@@ -39,7 +46,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ReservationProvider()),
-
+        ChangeNotifierProvider(create: (_) => MenuItemProvider()),
+        ChangeNotifierProvider(create: (_) => MenuItemImageProvider()),
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => OrderListProvider()),
       ],
       child: MaterialApp(
         title: 'RestoraNow Mobile',
@@ -52,7 +63,8 @@ class MyApp extends StatelessWidget {
           '/home': (_) => const HomeScreen(),
           '/profile': (_) => const ProfileScreen(),
           '/reservations': (_) => const ReservationsScreen(),
-          
+          '/menu': (_) => const MenuScreen(),
+          '/orders': (_) => const OrdersScreen(),
         },
       ),
     );
