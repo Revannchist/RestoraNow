@@ -1,10 +1,8 @@
-// lib/screens/menu/menu_screen.dart
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../layouts/main_layout.dart';
 import '../../providers/menu_item_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../models/menu_item_model.dart';
@@ -51,10 +49,21 @@ class _MenuScreenState extends State<MenuScreen> {
     final menu = context.watch<MenuItemProvider>();
     final cart = context.watch<CartProvider>();
 
-    return MainLayout(
-      title: 'Menu',
-      cartReservationId: widget.reservationId,
-      child: Stack(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Menu'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              Navigator.pushReplacementNamed(context, '/home');
+            }
+          },
+        ),
+      ),
+      body: Stack(
         children: [
           if (menu.isLoading)
             const Center(child: CircularProgressIndicator())
@@ -65,7 +74,9 @@ class _MenuScreenState extends State<MenuScreen> {
               padding: const EdgeInsets.only(bottom: 96, top: 8),
               children: [
                 // ===== Specials (Meal of the Day) =====
-                _SpecialsRow(items: menu.items.where((m) => m.isSpecialOfTheDay).toList()),
+                _SpecialsRow(
+                  items: menu.items.where((m) => m.isSpecialOfTheDay).toList(),
+                ),
 
                 const SizedBox(height: 12),
 
@@ -94,7 +105,10 @@ class _MenuScreenState extends State<MenuScreen> {
             child: ElevatedButton(
               onPressed: cart.totalQty == 0
                   ? null
-                  : () => showCartSheet(context, reservationId: widget.reservationId),
+                  : () => showCartSheet(
+                      context,
+                      reservationId: widget.reservationId,
+                    ),
               child: Text(
                 cart.totalQty == 0
                     ? 'Cart is empty'
@@ -124,8 +138,10 @@ class _SpecialsRow extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
           child: Row(
             children: [
-              const Text('Meal of the Day',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const Text(
+                'Meal of the Day',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -135,7 +151,10 @@ class _SpecialsRow extends StatelessWidget {
                 ),
                 child: const Text(
                   'Special',
-                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -148,7 +167,8 @@ class _SpecialsRow extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) => SizedBox(width: 260, child: _MenuItemCard(item: items[i])),
+            itemBuilder: (_, i) =>
+                SizedBox(width: 260, child: _MenuItemCard(item: items[i])),
           ),
         ),
       ],
@@ -172,7 +192,9 @@ class _CategoryFilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final catsSet = <String>{};
     for (final it in items) {
-      final c = (it.categoryName ?? 'Other').trim().isEmpty ? 'Other' : it.categoryName!;
+      final c = (it.categoryName ?? 'Other').trim().isNotEmpty
+          ? it.categoryName!
+          : 'Other';
       catsSet.add(c);
     }
     final cats = catsSet.toList()..sort();
@@ -188,14 +210,16 @@ class _CategoryFilterBar extends StatelessWidget {
             onSelected: (_) => onSelected(null),
           ),
           const SizedBox(width: 8),
-          ...cats.map((c) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(c),
-                  selected: selectedCategory == c,
-                  onSelected: (_) => onSelected(c),
-                ),
-              )),
+          ...cats.map(
+            (c) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(c),
+                selected: selectedCategory == c,
+                onSelected: (_) => onSelected(c),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -212,7 +236,9 @@ class _CategoryList extends StatelessWidget {
   Widget build(BuildContext context) {
     final byCat = <String, List<MenuItemModel>>{};
     for (final it in items) {
-      final key = (it.categoryName ?? 'Other').trim().isEmpty ? 'Other' : it.categoryName!;
+      final key = (it.categoryName ?? 'Other').trim().isNotEmpty
+          ? it.categoryName!
+          : 'Other';
       (byCat[key] ??= []).add(it);
     }
 
@@ -234,7 +260,9 @@ class _CategoryList extends StatelessWidget {
       itemBuilder: (ctx, i) {
         final cat = categories[i];
         final catItems = (byCat[cat] ?? [])
-          ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          ..sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
 
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -244,7 +272,13 @@ class _CategoryList extends StatelessWidget {
               // Category header
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Text(cat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                child: Text(
+                  cat,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
 
               // Grid of items
@@ -320,7 +354,10 @@ class _MenuItemCard extends StatelessWidget {
                     ),
                   ),
                   if (!item.isAvailable)
-                    const Text('Unavailable', style: TextStyle(color: Colors.grey))
+                    const Text(
+                      'Unavailable',
+                      style: TextStyle(color: Colors.grey),
+                    )
                   else
                     Selector<CartProvider, int>(
                       selector: (_, c) => c.qtyOf(item.id),
@@ -333,7 +370,8 @@ class _MenuItemCard extends StatelessWidget {
                         }
                         return _QtyStepper(
                           qty: qty,
-                          onDec: () => ctx.read<CartProvider>().removeOne(item.id),
+                          onDec: () =>
+                              ctx.read<CartProvider>().removeOne(item.id),
                           onInc: () => ctx.read<CartProvider>().add(item),
                         );
                       },
@@ -377,8 +415,9 @@ class _MenuItemImage extends StatelessWidget {
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (_, __, ___) => const _ImageFallback(),
-        loadingBuilder: (c, w, p) =>
-            p == null ? w : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        loadingBuilder: (c, w, p) => p == null
+            ? w
+            : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         filterQuality: FilterQuality.medium,
       );
     }
@@ -408,7 +447,11 @@ class _QtyStepper extends StatelessWidget {
   final int qty;
   final VoidCallback onDec;
   final VoidCallback onInc;
-  const _QtyStepper({required this.qty, required this.onDec, required this.onInc});
+  const _QtyStepper({
+    required this.qty,
+    required this.onDec,
+    required this.onInc,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -431,7 +474,9 @@ class _ImageFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.grey[200],
-      child: const Center(child: Icon(Icons.fastfood, size: 28, color: Colors.grey)),
+      child: const Center(
+        child: Icon(Icons.fastfood, size: 28, color: Colors.grey),
+      ),
     );
   }
 }

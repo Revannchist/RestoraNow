@@ -1,4 +1,3 @@
-// lib/screens/home_screen.dart
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -9,7 +8,6 @@ import '../providers/base/auth_provider.dart';
 import '../providers/cart_provider.dart';
 import '../models/menu_item_model.dart';
 
-// Adjust these imports if your services live elsewhere:
 import '../core/menu_item_api_service.dart';
 import '../core/menu_item_image_api_service.dart';
 import '../models/search_result.dart';

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:restoranow_mobile/screens/menu_screen.dart';
 
 import '../providers/reservation_provider.dart';
 import '../providers/user_provider.dart';
@@ -37,15 +38,32 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   }
 
   Future<void> _openReservationDialog({ReservationModel? reservation}) async {
-    final ok = await showDialog<bool>(
+    final result = await showDialog<ReservationDialogResult>(
       context: context,
       barrierDismissible: true,
       builder: (_) => ReservationFormDialog(reservation: reservation),
     );
-    if (!mounted || ok != true) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Reservation saved')));
+
+    if (!mounted || result == null) return;
+
+    if (result.saved) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Reservation saved')));
+
+      // If user chose "Save + Menu", open menu for that reservation
+      final rid = result.openMenuForReservationId;
+      if (rid != null) {
+        // Navigate to your Menu screen, passing reservationId
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => MenuScreen(reservationId: rid)),
+        );
+      } else {
+        // Normal flow: maybe refresh list
+        await _refresh();
+      }
+    }
   }
 
   Future<void> _confirmCancel(ReservationModel res) async {

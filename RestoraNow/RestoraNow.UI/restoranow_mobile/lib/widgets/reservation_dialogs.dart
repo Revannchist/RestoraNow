@@ -1,10 +1,21 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../../providers/reservation_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../../models/reservation_model.dart';
-import '../providers/base/base_provider.dart'; // we’ll reuse BaseProvider
+import '../../../providers/base/base_provider.dart'; // BaseProvider (fixed relative path)
+
+class ReservationDialogResult {
+  final bool saved;
+  final int? openMenuForReservationId;
+  const ReservationDialogResult({
+    required this.saved,
+    this.openMenuForReservationId,
+  });
+}
 
 class ReservationFormDialog extends StatefulWidget {
   final ReservationModel? reservation;
@@ -16,6 +27,7 @@ class ReservationFormDialog extends StatefulWidget {
 
 class _ReservationFormDialogState extends State<ReservationFormDialog> {
   final _formKey = GlobalKey<FormState>();
+
   DateTime? _date;
   TimeOfDay? _time;
   final _guestCountController = TextEditingController();
@@ -24,6 +36,10 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
   int? _tableId;
   late final _TableApi _tableApi;
   Future<List<_TableOption>>? _tablesFuture;
+
+  // ignore: unused_field
+  List<_TableOption> _allTables = [];
+  int? _selectedTableCapacity;
 
   @override
   void initState() {
@@ -46,7 +62,6 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
       _guestCountController.text = '2';
     }
 
-    // kick off table load
     _tablesFuture = _tableApi.getTables();
   }
 
@@ -57,11 +72,55 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  List<_TableOption> _eligibleTables(List<_TableOption> items) {
+    final guests = int.tryParse(_guestCountController.text) ?? 0;
+    if (guests <= 0) return items;
+    return items
+        .where((t) => t.capacity == null || t.capacity! >= guests)
+        .toList();
+  }
+
+  // NEW: resolve the reservation id for the just-created reservation (best-effort)
+  Future<int?> _resolveCreatedReservationId({
+    required ReservationProvider prov,
+    required int userId,
+    required DateTime dateOnly,
+    required String hhmm,
+    required int tableId,
+    required int guests,
+  }) async {
+    // Re-fetch my reservations and try to find a matching one
+    await prov.fetchMyReservations(userId);
+    final candidates = prov.reservations.where((r) {
+      final sameDate =
+          r.reservationDate.year == dateOnly.year &&
+          r.reservationDate.month == dateOnly.month &&
+          r.reservationDate.day == dateOnly.day;
+      final sameTime = r.reservationTime.startsWith(hhmm); // hh:mm:...
+      final sameTable = r.tableId == tableId;
+      final sameGuests = r.guestCount == guests;
+      return sameDate && sameTime && sameTable && sameGuests;
+    }).toList();
+
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) => b.id.compareTo(a.id));
+    return candidates.first.id;
+  }
+
+  Future<void> _submit({required bool andOpenMenu}) async {
     if (!_formKey.currentState!.validate() ||
         _date == null ||
         _time == null ||
         _tableId == null) {
+      return;
+    }
+
+    final cap = _selectedTableCapacity;
+    final guests = int.parse(_guestCountController.text);
+    if (cap != null && guests > cap) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Guest count exceeds table capacity ($cap).')),
+      );
       return;
     }
 
@@ -79,15 +138,14 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
       return;
     }
 
+    final dateOnly = DateTime(_date!.year, _date!.month, _date!.day);
+    final hhmm =
+        "${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}";
+
     final payload = {
-      "reservationDate": DateTime(
-        _date!.year,
-        _date!.month,
-        _date!.day,
-      ).toIso8601String(),
-      "reservationTime":
-          "${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}:00",
-      "guestCount": int.parse(_guestCountController.text),
+      "reservationDate": dateOnly.toIso8601String(),
+      "reservationTime": "$hhmm:00",
+      "guestCount": guests,
       "specialRequests": _specialRequestsController.text,
       "tableId": _tableId,
     };
@@ -102,18 +160,42 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
     }
 
     bool success;
+    int? reservationIdForMenu;
+
     if (widget.reservation == null) {
       success = await prov.createReservation(payload, me.id);
+      if (success && andOpenMenu) {
+        // Try to resolve the new reservation id
+        reservationIdForMenu = await _resolveCreatedReservationId(
+          prov: prov,
+          userId: me.id,
+          dateOnly: dateOnly,
+          hhmm: hhmm,
+          tableId: _tableId!,
+          guests: guests,
+        );
+      }
     } else {
       success = await prov.updateReservation(
         widget.reservation!.id,
         payload,
         me.id,
       );
+      if (success && andOpenMenu) {
+        reservationIdForMenu = widget.reservation!.id;
+      }
     }
 
     if (!mounted) return;
-    if (success) Navigator.of(context, rootNavigator: true).pop(true);
+    if (success) {
+      // Return a structured result so the caller can decide what to do
+      Navigator.of(context, rootNavigator: true).pop(
+        ReservationDialogResult(
+          saved: true,
+          openMenuForReservationId: reservationIdForMenu,
+        ),
+      );
+    }
   }
 
   @override
@@ -130,7 +212,6 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Table dropdown
               FutureBuilder<List<_TableOption>>(
                 future: _tablesFuture,
                 builder: (context, snap) {
@@ -161,12 +242,44 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
                       ],
                     );
                   }
+
                   final items = snap.data ?? const <_TableOption>[];
+                  _allTables = items;
+
                   if (items.isEmpty) {
+                    _tableId = null;
+                    _selectedTableCapacity = null;
                     return const Text('No tables found.');
                   }
-                  // ensure initial selection
-                  _tableId ??= items.first.id;
+
+                  final eligible = _eligibleTables(items);
+                  if (eligible.isEmpty) {
+                    _tableId = null;
+                    _selectedTableCapacity = null;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('No tables fit the current guest count.'),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Reduce the number of guests or try a different time.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    );
+                  }
+
+                  if (_tableId == null ||
+                      eligible.every((t) => t.id != _tableId)) {
+                    _tableId = eligible.first.id;
+                  }
+
+                  _selectedTableCapacity = eligible
+                      .firstWhere(
+                        (t) => t.id == _tableId,
+                        orElse: () => eligible.first,
+                      )
+                      .capacity;
 
                   return DropdownButtonFormField<int>(
                     value: _tableId,
@@ -174,7 +287,7 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
                       labelText: 'Table',
                       prefixIcon: Icon(Icons.table_bar_outlined),
                     ),
-                    items: items
+                    items: eligible
                         .map(
                           (t) => DropdownMenuItem<int>(
                             value: t.id,
@@ -182,7 +295,28 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
                           ),
                         )
                         .toList(),
-                    onChanged: (v) => setState(() => _tableId = v),
+                    onChanged: (v) {
+                      setState(() {
+                        _tableId = v;
+                        _selectedTableCapacity = eligible
+                            .firstWhere((t) => t.id == v)
+                            .capacity;
+
+                        final n = int.tryParse(_guestCountController.text) ?? 0;
+                        final cap = _selectedTableCapacity;
+                        if (cap != null && n > cap) {
+                          _guestCountController.text = cap.toString();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Guest count limited to $cap for this table.',
+                              ),
+                            ),
+                          );
+                          _formKey.currentState?.validate();
+                        }
+                      });
+                    },
                     validator: (v) =>
                         v == null ? 'Please select a table' : null,
                   );
@@ -231,23 +365,36 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
                 },
               ),
 
+              // Guests
               TextFormField(
                 controller: _guestCountController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(
                   labelText: "Guest count",
-                  prefixIcon: Icon(Icons.group_outlined),
+                  prefixIcon: const Icon(Icons.group_outlined),
+                  helperText: _selectedTableCapacity == null
+                      ? null
+                      : "Max ${_selectedTableCapacity} for selected table",
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return "Enter number of guests";
                   final n = int.tryParse(v);
                   if (n == null || n < 1)
                     return "Guest count must be at least 1";
+                  final cap = _selectedTableCapacity;
+                  if (cap != null && n > cap) return "Max $cap for this table";
                   return null;
+                },
+                onChanged: (_) {
+                  setState(() {
+                    _formKey.currentState?.validate();
+                  });
                 },
               ),
               const SizedBox(height: 8),
 
+              // Notes
               TextFormField(
                 controller: _specialRequestsController,
                 decoration: const InputDecoration(
@@ -262,12 +409,19 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () =>
-              Navigator.of(context, rootNavigator: true).maybePop(false),
+          onPressed: () => Navigator.of(
+            context,
+            rootNavigator: true,
+          ).maybePop(const ReservationDialogResult(saved: false)),
           child: const Text("Cancel"),
         ),
+        // NEW: Save + Menu
+        FilledButton.tonal(
+          onPressed: saving ? null : () => _submit(andOpenMenu: true),
+          child: const Text("Save + Menu"),
+        ),
         FilledButton(
-          onPressed: saving ? null : _submit,
+          onPressed: saving ? null : () => _submit(andOpenMenu: false),
           child: const Text("Save"),
         ),
       ],
@@ -275,27 +429,27 @@ class _ReservationFormDialogState extends State<ReservationFormDialog> {
   }
 }
 
-/// --- Minimal table API using your BaseProvider pattern ---
+// --- Minimal Table API (unchanged) ---
 
 class _TableOption {
   final int id;
   final String label;
-  const _TableOption(this.id, this.label);
+  final int? capacity;
+  const _TableOption(this.id, this.label, {this.capacity});
 
   factory _TableOption.fromJson(Map<String, dynamic> json) {
     final id = json['id'] as int;
-    // try common properties for display
     final number =
         (json['tableNumber'] ?? json['number'] ?? json['name'] ?? '$id')
             .toString();
-    final seats = json['seats'] ?? json['capacity'];
-    final seatsTxt = (seats == null) ? '' : ' • ${seats}p';
-    return _TableOption(id, 'Table $number$seatsTxt');
+    final cap = (json['capacity'] ?? json['seats']) as int?;
+    final seatsTxt = (cap == null) ? '' : ' • ${cap}p';
+    return _TableOption(id, 'Table $number$seatsTxt', capacity: cap);
   }
 }
 
 class _TableApi extends BaseProvider<_TableOption> {
-  _TableApi() : super('table'); // -> GET /api/table
+  _TableApi() : super('table');
   @override
   _TableOption fromJson(Map<String, dynamic> json) =>
       _TableOption.fromJson(json);

@@ -36,9 +36,15 @@ namespace RestoraNow.Services.Data
             // Configure Address relationship
             modelBuilder.Entity<Address>()
                 .HasOne(a => a.User)
-                .WithMany(u => u.Addresses) // Add this navigation to User if needed
+                .WithMany(u => u.Addresses)
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            //User can only have 1 default address
+            modelBuilder.Entity<Address>()
+                .HasIndex(a => new { a.UserId, a.IsDefault })
+                .HasFilter("[IsDefault] = 1")
+                .IsUnique();
 
             modelBuilder.Entity<Order>()
                 .HasOne(o => o.Payment)
