@@ -1,4 +1,6 @@
-﻿using MapsterMapper;
+﻿using System.Security.Claims;
+using MapsterMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using RestoraNow.Model.Enums;
 using RestoraNow.Model.Requests.Order;
@@ -15,8 +17,13 @@ namespace RestoraNow.Services.Implementations
         : BaseCRUDService<OrderResponse, OrderSearchModel, Order, OrderCreateRequest, OrderUpdateRequest>,
           IOrderService
     {
-        public OrderService(ApplicationDbContext context, IMapper mapper)
-            : base(context, mapper) { }
+        private readonly IHttpContextAccessor _http;
+
+        public OrderService(ApplicationDbContext context, IMapper mapper, IHttpContextAccessor http)
+            : base(context, mapper)
+        {
+            _http = http;
+        }
 
         // ---------- Queries ----------
 
@@ -98,38 +105,56 @@ namespace RestoraNow.Services.Implementations
 
             await ValidateUserAndReservationAsync(request.UserId, request.ReservationId);
 
-            // Status transitions policy
+            // Status transition policy (still enforced)
             if (!IsValidTransition(order.Status, request.Status))
                 throw new InvalidOperationException($"Invalid status transition {order.Status} → {request.Status}.");
 
-            // If items are being updated, only allow when Pending
-            if (request.MenuItemIds == null || !request.MenuItemIds.Any())
-                throw new InvalidOperationException("At least one menu item must be selected for update.");
+            // Determine if items are actually changing
+            var hasList = request.MenuItemIds != null;
+            var itemsChanging = hasList && !MenuMatches(order.OrderItems, request.MenuItemIds!);
 
-            if (order.Status != OrderStatus.Pending)
-                throw new InvalidOperationException("Only pending orders can be edited.");
+            // ---- ITEM EDIT RULES ----
+            // Only enforce "Pending only" when items are changing.
+            if (itemsChanging)
+            {
+                if (request.MenuItemIds!.Count == 0)
+                    throw new InvalidOperationException("At least one menu item must be selected for update.");
 
+                var isAdmin = _http.HttpContext?.User?.IsInRole("Admin") == true;
+
+                var canEditItems =
+                    order.Status == OrderStatus.Pending ||
+                    (order.Status == OrderStatus.Preparing && isAdmin); // admin override for Preparing
+
+                if (!canEditItems)
+                    throw new InvalidOperationException("Only pending orders can be edited.");
+            }
+
+            // Apply scalar fields
             order.UserId = request.UserId;
             order.ReservationId = request.ReservationId;
             order.Status = request.Status;
 
-            var qtyById = BuildQtyMap(request.MenuItemIds);
-            var menuRows = await LoadPricedAndAvailableMenuItemsAsync(qtyById.Keys);
-            EnsureAllRequestedItemsExist(qtyById.Keys, menuRows.Select(m => m.Id));
-
-            // Replace items
-            _context.OrderItems.RemoveRange(order.OrderItems);
-            order.OrderItems.Clear();
-
-            foreach (var row in menuRows)
+            // Replace items ONLY if they actually changed
+            if (itemsChanging)
             {
-                order.OrderItems.Add(new OrderItem
+                var qtyById = BuildQtyMap(request.MenuItemIds!);
+                var menuRows = await LoadPricedAndAvailableMenuItemsAsync(qtyById.Keys);
+                EnsureAllRequestedItemsExist(qtyById.Keys, menuRows.Select(m => m.Id));
+
+                _context.OrderItems.RemoveRange(order.OrderItems);
+                order.OrderItems.Clear();
+
+                foreach (var row in menuRows)
                 {
-                    OrderId = order.Id,
-                    MenuItemId = row.Id,
-                    Quantity = qtyById[row.Id],
-                    UnitPrice = row.Price
-                });
+                    order.OrderItems.Add(new OrderItem
+                    {
+                        OrderId = order.Id,
+                        MenuItemId = row.Id,
+                        Quantity = qtyById[row.Id],
+                        UnitPrice = row.Price
+                    });
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -166,6 +191,21 @@ namespace RestoraNow.Services.Implementations
 
         private static Dictionary<int, int> BuildQtyMap(IEnumerable<int> ids) =>
             ids.GroupBy(i => i).ToDictionary(g => g.Key, g => Math.Max(1, g.Count()));
+
+        private static bool MenuMatches(ICollection<OrderItem> current, IEnumerable<int> requestedIds)
+        {
+            var req = BuildQtyMap(requestedIds);
+            var cur = current
+                .GroupBy(i => i.MenuItemId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+
+            if (req.Count != cur.Count) return false;
+            foreach (var kv in req)
+                if (!cur.TryGetValue(kv.Key, out var q) || q != kv.Value)
+                    return false;
+
+            return true;
+        }
 
         private async Task<List<(int Id, decimal Price)>> LoadPricedAndAvailableMenuItemsAsync(IEnumerable<int> ids)
         {
@@ -207,7 +247,6 @@ namespace RestoraNow.Services.Implementations
                 (OrderStatus.Preparing, OrderStatus.Ready) => true,
                 (OrderStatus.Ready, OrderStatus.Completed) => true,
                 (_, OrderStatus.Cancelled) => true,
-                // No-op allowed
                 var x when x.from == x.to => true,
                 _ => false
             };

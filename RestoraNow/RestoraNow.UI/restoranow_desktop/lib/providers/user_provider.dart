@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/user_api_service.dart';
 import '../models/user_model.dart';
-
+import '../core/api_exception.dart';
 class UserProvider with ChangeNotifier {
   final UserApiService _apiService = UserApiService();
   List<UserModel> _users = [];
@@ -20,19 +20,19 @@ class UserProvider with ChangeNotifier {
   int get pageSize => _pageSize;
   int get totalPages => (_totalCount / _pageSize).ceil();
 
-  void setPage(int page) {
-    _currentPage = page;
-    fetchUsers();
-  }
-
   List<UserModel> get users => _users;
   bool get isLoading => _isLoading;
   String? get error => _error;
   int get totalCount => _totalCount;
 
+  void setPage(int page) {
+    _currentPage = page;
+    fetchUsers();
+  }
+
   Future<void> fetchUsers({String? sortBy, bool ascending = true}) async {
     _isLoading = true;
-    _error = null;
+    _error = null; // clear stale error so UI doesn't show an old toast
     notifyListeners();
 
     try {
@@ -52,6 +52,9 @@ class UserProvider with ChangeNotifier {
 
       _users = result.items;
       _totalCount = result.totalCount;
+    } on ApiException catch (e) {
+      // keep raw server message/body; extractServerMessage() can prettify it
+      _error = e.message;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -76,6 +79,8 @@ class UserProvider with ChangeNotifier {
         'password': password,
       });
       _users.add(created);
+    } on ApiException catch (e) {
+      _error = e.message; // <-- important
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -104,6 +109,8 @@ class UserProvider with ChangeNotifier {
       if (index != -1) {
         _users[index] = updated;
       }
+    } on ApiException catch (e) {
+      _error = e.message;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -120,6 +127,8 @@ class UserProvider with ChangeNotifier {
     try {
       await _apiService.delete(id);
       _users.removeWhere((u) => u.id == id);
+    } on ApiException catch (e) {
+      _error = e.message; // ✅
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -139,27 +148,24 @@ class UserProvider with ChangeNotifier {
     _usernameFilter = username;
     _isActiveFilter = isActive;
     _currentPage = 1;
-    fetchUsers(); // Use the stored filters
+    fetchUsers();
   }
 
-void updateUserImageUrl(int userId, String newImageUrl) {
-  final index = _users.indexWhere((u) => u.id == userId);
-  if (index != -1) {
-    final user = _users[index];
-    final updatedUser = user.copyWith(imageUrl: newImageUrl);
-    _users[index] = updatedUser;
-    notifyListeners();
+  void updateUserImageUrl(int userId, String newImageUrl) {
+    final index = _users.indexWhere((u) => u.id == userId);
+    if (index != -1) {
+      final user = _users[index];
+      _users[index] = user.copyWith(imageUrl: newImageUrl);
+      notifyListeners();
+    }
   }
-}
 
-void removeUserImage(int userId) {
-  final index = _users.indexWhere((u) => u.id == userId);
-  if (index != -1) {
-    final user = _users[index];
-    final updatedUser = user.copyWith(imageUrl: null);
-    _users[index] = updatedUser;
-    notifyListeners();
+  void removeUserImage(int userId) {
+    final index = _users.indexWhere((u) => u.id == userId);
+    if (index != -1) {
+      final user = _users[index];
+      _users[index] = user.copyWith(imageUrl: null);
+      notifyListeners();
+    }
   }
-}
-
 }

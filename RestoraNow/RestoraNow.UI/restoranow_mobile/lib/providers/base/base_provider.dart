@@ -233,4 +233,20 @@ abstract class BaseProvider<T> with ChangeNotifier {
     _logResponse(res);
     if (!_isSuccess(res.statusCode)) _throwApi(res);
   }
+
+  @protected
+  Future<T> putCustom(String relativePath, dynamic request) async {
+    final uri = buildApiUri(relativePath);
+    final body = jsonEncode(request);
+    _logRequest("PUT", uri, body: body);
+    final res = await _send(
+      () => http.put(uri, headers: _createHeaders(), body: body),
+    );
+    _logResponse(res);
+
+    if (_isSuccess(res.statusCode)) {
+      return fromJson(_safeJson(res.body));
+    }
+    _throwApi(res);
+  }
 }

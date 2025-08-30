@@ -1,4 +1,3 @@
-// lib/widgets/table_dialogs.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -193,7 +192,7 @@ void showCreateTableDialog(BuildContext context) {
                         Navigator.pop(dialogCtx);
                       } on ApiException catch (e) {
                         // Bottom SnackBar like login screen
-                        showApiErrorSnack(rootCtx, e);
+                        showApiErrorOverlay(rootCtx, e);
                         setState(() => isSubmitting = false);
                       } catch (_) {
                         showSnackMessage(rootCtx, 'Something went wrong. Please try again.');
@@ -341,7 +340,7 @@ void showUpdateTableDialog(BuildContext context, TableModel table) {
                       if (!dialogCtx.mounted) return;
                       Navigator.pop(dialogCtx);
                     } on ApiException catch (e) {
-                      showApiErrorSnack(rootCtx, e);
+                      showApiErrorOverlay(rootCtx, e);
                       setState(() => isSubmitting = false);
                     } catch (_) {
                       showSnackMessage(rootCtx, 'Something went wrong. Please try again.');

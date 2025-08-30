@@ -270,7 +270,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               } on ApiException catch (e) {
                 if (!context.mounted) return;
                 Navigator.pop(context);
-                msg.showApiErrorSnack(context, e);
+                msg.showApiErrorOverlay(context, e);
               } catch (_) {
                 if (!context.mounted) return;
                 Navigator.pop(context);

@@ -311,7 +311,7 @@ namespace RestoraNow.Services.Migrations
                     Capacity = table.Column<int>(type: "int", nullable: false),
                     Location = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     IsAvailable = table.Column<bool>(type: "bit", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     RestaurantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -484,9 +484,11 @@ namespace RestoraNow.Services.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Address_UserId",
+                name: "IX_Address_UserId_IsDefault",
                 table: "Address",
-                column: "UserId");
+                columns: new[] { "UserId", "IsDefault" },
+                unique: true,
+                filter: "[IsDefault] = 1");
 
             migrationBuilder.CreateIndex(
                 name: "RoleNameIndex",

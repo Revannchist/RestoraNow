@@ -8,10 +8,10 @@ class AuthProvider with ChangeNotifier {
   static const _kJwtKey = 'jwt';
   static const _kJwtExpKey = 'jwt_exp';
 
+  /// Kept static so BaseProvider can read it at call time.
   static String? token;
   DateTime? expiresAt;
 
-  // While restoring from disk at startup
   bool _restoring = true;
   bool get restoring => _restoring;
 
@@ -19,7 +19,7 @@ class AuthProvider with ChangeNotifier {
     _restore();
   }
 
-  // Consider token expired if less than 30s remain (avoids edge cases on mobile)
+  /// Consider token expired if <30s remain (mobile safety margin).
   bool get isAuthenticated {
     final exp = expiresAt;
     if (token == null || exp == null) return false;
@@ -34,7 +34,6 @@ class AuthProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final savedToken = prefs.getString(_kJwtKey);
       final savedExp = prefs.getString(_kJwtExpKey);
-
       if (savedToken != null && savedExp != null) {
         final parsedExp = DateTime.tryParse(savedExp);
         if (parsedExp != null) {
@@ -50,7 +49,6 @@ class AuthProvider with ChangeNotifier {
 
   Future<bool> login(String email, String password) async {
     final uri = Uri.parse("${dotenv.env['API_URL']}Auth/login");
-
     try {
       final response = await http.post(
         uri,
@@ -61,6 +59,7 @@ class AuthProvider with ChangeNotifier {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         token = data['token'];
+        // backend returns ISO string under "expires"
         expiresAt = DateTime.parse(data['expires']);
 
         final prefs = await SharedPreferences.getInstance();
@@ -71,8 +70,8 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        final body = jsonDecode(response.body);
-        _error = body["message"] ?? "Login failed";
+        final body = _tryJson(response.body);
+        _error = body?["message"]?.toString() ?? "Login failed";
         notifyListeners();
         return false;
       }
@@ -92,14 +91,16 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ===== JWT payload helpers (unchanged) =====
+  // ===== JWT helpers =====
 
   Map<String, dynamic>? get _payload {
-    if (token == null) return null;
+    final t = token;
+    if (t == null) return null;
     try {
-      final parts = token!.split('.');
+      final parts = t.split('.');
       if (parts.length != 3) return null;
-      String pad(String s) => s.padRight(s.length + (4 - s.length % 4) % 4, '=');
+      String pad(String s) =>
+          s.padRight(s.length + (4 - s.length % 4) % 4, '=');
       final jsonStr = utf8.decode(base64Url.decode(pad(parts[1])));
       return jsonDecode(jsonStr) as Map<String, dynamic>;
     } catch (_) {
@@ -117,17 +118,35 @@ class AuthProvider with ChangeNotifier {
       _payload?['upn']?.toString() ??
       _payload?['preferred_username']?.toString();
 
+  /// Robust userId extraction. Handles common ASP.NET / JWT claim keys.
   int? get userId {
-    final raw = _payload?['nameid']?.toString() ?? _payload?['sub']?.toString();
-    return raw == null ? null : int.tryParse(raw);
+    final p = _payload;
+    if (p == null) return null;
+
+    // Common claim keys in order; stop at the first parsable int.
+    for (final key in const [
+      'nameid',
+      'sub',
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier',
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameid',
+      'userId',
+      'id',
+    ]) {
+      final raw = p[key];
+      if (raw == null) continue;
+      final s = raw.toString();
+      final n = int.tryParse(s);
+      if (n != null) return n;
+    }
+    return null;
   }
 
-  List<String> get roles {
-    final p = _payload;
-    if (p == null) return const [];
-    final r = p['role'] ?? p['roles'];
-    if (r == null) return const [];
-    if (r is List) return r.map((e) => e.toString()).toList();
-    return [r.toString()];
+  Map<String, dynamic>? _tryJson(String s) {
+    try {
+      final d = jsonDecode(s);
+      return d is Map<String, dynamic> ? d : null;
+    } catch (_) {
+      return null;
+    }
   }
 }

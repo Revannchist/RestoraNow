@@ -94,25 +94,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               return;
                             }
 
-                            // Cash on delivery: place the order now
                             final auth = context.read<AuthProvider>();
-                            final userId =
-                                auth.userId; // should be non-null in your flow
-                            if (userId == null) {
-                              // ultra-rare fallback: session lost
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Session expired. Please sign in again.',
-                                    ),
+                            if (!auth.isAuthenticated) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Session expired. Please sign in again.',
                                   ),
-                                );
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  '/login',
-                                );
-                              }
+                                ),
+                              );
+                              Navigator.pushReplacementNamed(context, '/login');
                               return;
                             }
 
@@ -121,6 +113,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Your cart is empty.'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            final userId = auth.userId;
+                            if (userId == null) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Could not read user id from token.',
+                                  ),
                                 ),
                               );
                               return;

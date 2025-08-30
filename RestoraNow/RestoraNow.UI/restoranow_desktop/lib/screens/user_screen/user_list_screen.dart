@@ -10,7 +10,7 @@ import '../../theme/theme.dart';
 import '../../widgets/pagination_controls.dart';
 import '../../widgets/user_dialogs.dart';
 
-// global snack helper + ApiException
+// overlay helper + ApiException
 import '../../widgets/helpers/error_dialog_helper.dart' as msg;
 import '../../core/api_exception.dart';
 
@@ -35,6 +35,8 @@ class _UserListScreenState extends State<UserListScreen> {
   final FocusNode _usernameFocus = FocusNode();
   bool? _selectedStatus;
 
+  String? _lastErrorShown;
+
   @override
   void initState() {
     super.initState();
@@ -42,9 +44,7 @@ class _UserListScreenState extends State<UserListScreen> {
     final userProvider = context.read<UserProvider>();
     final imageProvider = context.read<UserImageProvider>();
 
-    // First load
     userProvider.fetchUsers().then((_) {
-      // Optional: prefetch avatars
       for (var user in userProvider.users) {
         imageProvider.fetchUserImage(user.id);
       }
@@ -60,10 +60,10 @@ class _UserListScreenState extends State<UserListScreen> {
 
   void _applyFilters() {
     context.read<UserProvider>().setFilters(
-          name: _nameController.text,
-          username: _usernameController.text,
-          isActive: _selectedStatus,
-        );
+      name: _nameController.text,
+      username: _usernameController.text,
+      isActive: _selectedStatus,
+    );
   }
 
   @override
@@ -123,13 +123,24 @@ class _UserListScreenState extends State<UserListScreen> {
                     _selectedStatus == false,
                   ],
                   onPressed: (index) {
-                    setState(() => _selectedStatus = [null, true, false][index]);
+                    setState(
+                      () => _selectedStatus = [null, true, false][index],
+                    );
                     _applyFilters();
                   },
                   children: const [
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('All')),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Active')),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Inactive')),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('All'),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('Active'),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('Inactive'),
+                    ),
                   ],
                 ),
                 const SizedBox(width: 8),
@@ -154,12 +165,24 @@ class _UserListScreenState extends State<UserListScreen> {
           Expanded(
             child: Consumer<UserProvider>(
               builder: (context, provider, _) {
-                // show full-screen spinner only on first load
-                final isFirstLoad = provider.isLoading && provider.users.isEmpty;
-
-                if (provider.error != null && provider.users.isEmpty) {
-                  return Center(child: Text('Error: ${provider.error}'));
+                // show overlay error (once) — prettify JSON payloads too
+                final err = provider.error;
+                if (err != null && err.isNotEmpty && err != _lastErrorShown) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    // turns {"message":...} or {"errors":{...}} into a nice message
+                    final pretty = msg.extractServerMessage(err);
+                    msg.showOverlayMessage(
+                      context,
+                      pretty,
+                      type: msg.AppMessageType.error,
+                    );
+                    _lastErrorShown = err; // dedupe
+                  });
                 }
+
+                final isFirstLoad =
+                    provider.isLoading && provider.users.isEmpty;
 
                 return Stack(
                   children: [
@@ -169,126 +192,202 @@ class _UserListScreenState extends State<UserListScreen> {
                       child: isFirstLoad
                           ? const Center(child: CircularProgressIndicator())
                           : (provider.users.isEmpty
-                              ? const Center(child: Text('No users found'))
-                              : ListView.builder(
-                                  key: ValueKey(provider.users.length),
-                                  itemCount: provider.users.length,
-                                  itemBuilder: (context, index) {
-                                    final user = provider.users[index];
-                                    return Container(
-                                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).cardColor,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: Theme.of(context).dividerColor),
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.center,
-                                        children: [
-                                          // Avatar + name/email/role
-                                          Expanded(
-                                            flex: 2,
-                                            child: Row(
-                                              children: [
-                                                ClipOval(
-                                                  child: user.imageUrl != null
-                                                      ? Image.memory(
-                                                          _decodeBase64Image(user.imageUrl!),
-                                                          width: 40,
-                                                          height: 40,
-                                                          fit: BoxFit.cover,
-                                                          errorBuilder: (context, error, stackTrace) =>
-                                                              const Icon(Icons.broken_image, size: 40),
-                                                        )
-                                                      : const CircleAvatar(
-                                                          radius: 20,
-                                                          backgroundColor: Colors.deepPurpleAccent,
-                                                          child: Icon(Icons.person, color: Colors.white, size: 20),
-                                                        ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      Text(
-                                                        '${user.firstName} ${user.lastName}',
-                                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                                      ),
-                                                      Text(
-                                                        user.email,
-                                                        style: const TextStyle(fontSize: 14, color: Colors.black),
-                                                      ),
-                                                      if (user.roles.isNotEmpty)
-                                                        AppTheme.roleChip(user.roles.first),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                ? const Center(child: Text('No users found'))
+                                : ListView.builder(
+                                    key: ValueKey(provider.users.length),
+                                    itemCount: provider.users.length,
+                                    itemBuilder: (context, index) {
+                                      final user = provider.users[index];
+                                      return Container(
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 4,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).cardColor,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
                                           ),
-
-                                          // Phone
-                                          Expanded(
-                                            flex: 2,
-                                            child: Row(
-                                              children: [
-                                                const Icon(Icons.phone, size: 16, color: Colors.grey),
-                                                const SizedBox(width: 4),
-                                                Flexible(
-                                                  child: Text(
-                                                    user.phoneNumber ?? '-',
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                          border: Border.all(
+                                            color: Theme.of(
+                                              context,
+                                            ).dividerColor,
                                           ),
-
-                                          // CreatedAt
-                                          Expanded(
-                                            child: Row(
-                                              children: [
-                                                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                                                const SizedBox(width: 4),
-                                                Text(_formatDateTime(user.createdAt)),
-                                              ],
-                                            ),
-                                          ),
-
-                                          // Status
-                                          Expanded(child: AppTheme.statusChip(isActive: user.isActive)),
-
-                                          // Actions
-                                          SizedBox(
-                                            width: 80,
-                                            child: Center(
-                                              child: Wrap(
-                                                spacing: 4,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            // Avatar + name/email/role
+                                            Expanded(
+                                              flex: 2,
+                                              child: Row(
                                                 children: [
-                                                  IconButton(
-                                                    icon: const Icon(Icons.edit, size: 18),
-                                                    onPressed: () => showUpdateUserDialog(
-                                                      context,
-                                                      user,
-                                                      onImageUpdated: () => setState(() {}),
-                                                    ),
+                                                  ClipOval(
+                                                    child: user.imageUrl != null
+                                                        ? Image.memory(
+                                                            _decodeBase64Image(
+                                                              user.imageUrl!,
+                                                            ),
+                                                            width: 40,
+                                                            height: 40,
+                                                            fit: BoxFit.cover,
+                                                            errorBuilder:
+                                                                (
+                                                                  context,
+                                                                  error,
+                                                                  stackTrace,
+                                                                ) => const Icon(
+                                                                  Icons
+                                                                      .broken_image,
+                                                                  size: 40,
+                                                                ),
+                                                          )
+                                                        : const CircleAvatar(
+                                                            radius: 20,
+                                                            backgroundColor: Colors
+                                                                .deepPurpleAccent,
+                                                            child: Icon(
+                                                              Icons.person,
+                                                              color:
+                                                                  Colors.white,
+                                                              size: 20,
+                                                            ),
+                                                          ),
                                                   ),
-                                                  IconButton(
-                                                    icon: const Icon(Icons.delete, size: 18),
-                                                    color: Colors.red,
-                                                    onPressed: () => _confirmDelete(context, user.id),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          '${user.firstName} ${user.lastName}',
+                                                          style:
+                                                              const TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                        ),
+                                                        Text(
+                                                          user.email,
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 14,
+                                                                color: Colors
+                                                                    .black,
+                                                              ),
+                                                        ),
+                                                        if (user
+                                                            .roles
+                                                            .isNotEmpty)
+                                                          AppTheme.roleChip(
+                                                            user.roles.first,
+                                                          ),
+                                                      ],
+                                                    ),
                                                   ),
                                                 ],
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                )),
+
+                                            // Phone
+                                            Expanded(
+                                              flex: 2,
+                                              child: Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.phone,
+                                                    size: 16,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Flexible(
+                                                    child: Text(
+                                                      user.phoneNumber ?? '-',
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // CreatedAt
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.calendar_today,
+                                                    size: 16,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    _formatDateTime(
+                                                      user.createdAt,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // Status
+                                            Expanded(
+                                              child: AppTheme.statusChip(
+                                                isActive: user.isActive,
+                                              ),
+                                            ),
+
+                                            // Actions
+                                            SizedBox(
+                                              width: 80,
+                                              child: Center(
+                                                child: Wrap(
+                                                  spacing: 4,
+                                                  children: [
+                                                    IconButton(
+                                                      icon: const Icon(
+                                                        Icons.edit,
+                                                        size: 18,
+                                                      ),
+                                                      onPressed: () =>
+                                                          showUpdateUserDialog(
+                                                            context,
+                                                            user,
+                                                            onImageUpdated:
+                                                                () => setState(
+                                                                  () {},
+                                                                ),
+                                                          ),
+                                                    ),
+                                                    IconButton(
+                                                      icon: const Icon(
+                                                        Icons.delete,
+                                                        size: 18,
+                                                      ),
+                                                      color: Colors.red,
+                                                      onPressed: () =>
+                                                          _confirmDelete(
+                                                            context,
+                                                            user.id,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  )),
                     ),
 
                     // Slim loading bar overlay when updating filters/pages
@@ -305,7 +404,7 @@ class _UserListScreenState extends State<UserListScreen> {
             ),
           ),
 
-          // Pagination (watches only UserProvider)
+          // Pagination
           Consumer<UserProvider>(
             builder: (context, provider, _) => PaginationControls(
               currentPage: provider.currentPage,
@@ -335,6 +434,7 @@ class _UserListScreenState extends State<UserListScreen> {
   void _confirmDelete(BuildContext context, int id) {
     showDialog(
       context: context,
+      useRootNavigator: true,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Delete'),
         content: const Text('Are you sure you want to delete this user?'),
@@ -349,15 +449,22 @@ class _UserListScreenState extends State<UserListScreen> {
                 await context.read<UserProvider>().deleteUser(id);
                 if (!mounted) return;
                 Navigator.pop(context);
-                msg.showSnackMessage(context, 'User deleted', type: msg.AppMessageType.success);
+                msg.showOverlayMessage(
+                  context,
+                  'User deleted',
+                  type: msg.AppMessageType.success,
+                );
               } on ApiException catch (e) {
                 if (!mounted) return;
                 Navigator.pop(context);
-                msg.showApiErrorSnack(context, e);
+                msg.showAnyErrorOnTop(context, e);
               } catch (_) {
                 if (!mounted) return;
                 Navigator.pop(context);
-                msg.showSnackMessage(context, 'Something went wrong. Please try again.');
+                msg.showOverlayMessage(
+                  context,
+                  'Something went wrong. Please try again.',
+                );
               }
             },
             child: const Text('Delete'),

@@ -9,6 +9,10 @@ import '../../widgets/pagination_controls.dart';
 import '../../widgets/table_dialogs.dart' as tbl;
 import '../../widgets/restaurant_dialogs.dart' as rest;
 
+// overlays
+import '../../widgets/helpers/error_dialog_helper.dart' as msg;
+import '../../core/api_exception.dart';
+
 class RestaurantScreen extends StatefulWidget {
   const RestaurantScreen({super.key});
 
@@ -20,6 +24,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   final TextEditingController _capacityController = TextEditingController();
   final FocusNode _capacityFocus = FocusNode();
   bool? _isAvailable;
+
+  String? _lastTableError;
+  String? _lastRestaurantError;
 
   @override
   void initState() {
@@ -35,9 +42,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   void _applyFilters() {
     final capacity = int.tryParse(_capacityController.text);
     context.read<TableProvider>().setFilters(
-          capacity: capacity,
-          isAvailable: _isAvailable,
-        );
+      capacity: capacity,
+      isAvailable: _isAvailable,
+    );
   }
 
   @override
@@ -56,11 +63,14 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           // -------- Restaurant card only rebuilds on RestaurantProvider changes
           Consumer<RestaurantProvider>(
             builder: (context, rp, _) {
-              if (rp.error != null) {
-                return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('Error: ${rp.error}'),
-                );
+              if (rp.error != null &&
+                  rp.error!.isNotEmpty &&
+                  rp.error != _lastRestaurantError) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  msg.showOverlayMessage(context, rp.error!);
+                  _lastRestaurantError = rp.error;
+                });
               }
               final r = rp.restaurant;
               return Card(
@@ -76,10 +86,14 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         children: [
                           const Text(
                             'Restaurant Info',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           TextButton.icon(
-                            onPressed: () => rest.showEditRestaurantDialog(context),
+                            onPressed: () =>
+                                rest.showEditRestaurantDialog(context),
                             icon: const Icon(Icons.edit),
                             label: const Text('Edit'),
                           ),
@@ -144,9 +158,18 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     _applyFilters();
                   },
                   children: const [
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('All')),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Available')),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Unavailable')),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('All'),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('Available'),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('Unavailable'),
+                    ),
                   ],
                 ),
                 const SizedBox(width: 8),
@@ -170,61 +193,95 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           Expanded(
             child: Consumer<TableProvider>(
               builder: (context, tp, _) {
+                if (tp.error != null &&
+                    tp.error!.isNotEmpty &&
+                    tp.error != _lastTableError) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    msg.showOverlayMessage(context, tp.error!);
+                    _lastTableError = tp.error;
+                  });
+                }
+
                 final isFirstLoad = tp.isLoading && tp.items.isEmpty;
 
-                // Use a Stack to overlay a slim progress bar while keeping content in place
                 return Stack(
                   children: [
-                    // Animate list changes (like on reservations)
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       child: isFirstLoad
                           ? const Center(child: CircularProgressIndicator())
                           : (tp.items.isEmpty
-                              ? const Center(child: Text('No tables found'))
-                              : ListView.builder(
-                                  key: ValueKey(tp.items.length), // fade when size changes
-                                  itemCount: tp.items.length,
-                                  itemBuilder: (context, index) {
-                                    final t = tp.items[index];
-                                    return Card(
-                                      color: Theme.of(context).cardColor,
-                                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                      child: ListTile(
-                                        title: Text('Table #${t.tableNumber}'),
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text('Capacity: ${t.capacity}'),
-                                            if ((t.location?.isNotEmpty ?? false)) Text('Location: ${t.location}'),
-                                            if ((t.notes?.isNotEmpty ?? false)) Text('Notes: ${t.notes}'),
-                                          ],
+                                ? const Center(child: Text('No tables found'))
+                                : ListView.builder(
+                                    key: ValueKey(tp.items.length),
+                                    itemCount: tp.items.length,
+                                    itemBuilder: (context, index) {
+                                      final t = tp.items[index];
+                                      return Card(
+                                        color: Theme.of(context).cardColor,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 8,
                                         ),
-                                        leading: Icon(
-                                          t.isAvailable ? Icons.event_seat : Icons.block,
-                                          color: t.isAvailable ? Colors.green : Colors.red,
+                                        child: ListTile(
+                                          title: Text(
+                                            'Table #${t.tableNumber}',
+                                          ),
+                                          subtitle: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Capacity: ${t.capacity}'),
+                                              if ((t.location?.isNotEmpty ??
+                                                  false))
+                                                Text('Location: ${t.location}'),
+                                              if ((t.notes?.isNotEmpty ??
+                                                  false))
+                                                Text('Notes: ${t.notes}'),
+                                            ],
+                                          ),
+                                          leading: Icon(
+                                            t.isAvailable
+                                                ? Icons.event_seat
+                                                : Icons.block,
+                                            color: t.isAvailable
+                                                ? Colors.green
+                                                : Colors.red,
+                                          ),
+                                          trailing: Wrap(
+                                            spacing: 4,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.edit,
+                                                  size: 18,
+                                                ),
+                                                onPressed: () =>
+                                                    tbl.showUpdateTableDialog(
+                                                      context,
+                                                      t,
+                                                    ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete,
+                                                  size: 18,
+                                                ),
+                                                color: Colors.red,
+                                                onPressed: () => _confirmDelete(
+                                                  context,
+                                                  t.id,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                        trailing: Wrap(
-                                          spacing: 4,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.edit, size: 18),
-                                              onPressed: () => tbl.showUpdateTableDialog(context, t),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(Icons.delete, size: 18),
-                                              color: Colors.red,
-                                              onPressed: () => _confirmDelete(context, t.id),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                )),
+                                      );
+                                    },
+                                  )),
                     ),
 
-                    // Thin loader on top while fetching (no flicker)
                     if (tp.isLoading && tp.items.isNotEmpty)
                       const Positioned(
                         top: 0,
@@ -238,7 +295,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             ),
           ),
 
-          // Pagination also watches only TableProvider
+          // Pagination
           Consumer<TableProvider>(
             builder: (context, tp, _) => PaginationControls(
               currentPage: tp.currentPage,
@@ -256,6 +313,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   void _confirmDelete(BuildContext context, int id) {
     showDialog(
       context: context,
+      useRootNavigator: true,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Delete'),
         content: const Text('Are you sure you want to delete this table?'),
@@ -268,15 +326,24 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             onPressed: () async {
               try {
                 await context.read<TableProvider>().deleteItem(id);
-                if (context.mounted) Navigator.pop(context);
+                if (mounted) {
+                  Navigator.pop(context);
+                  msg.showOverlayMessage(
+                    context,
+                    'Table deleted',
+                    type: msg.AppMessageType.success,
+                  );
+                }
+              } on ApiException catch (e) {
+                if (!mounted) return;
+                Navigator.pop(context);
+                msg.showAnyErrorOnTop(context, e);
               } catch (_) {
-                if (!context.mounted) return;
-                showDialog(
-                  context: context,
-                  builder: (_) => const AlertDialog(
-                    title: Text('Error'),
-                    content: Text('Something went wrong. Please try again.'),
-                  ),
+                if (!mounted) return;
+                Navigator.pop(context);
+                msg.showOverlayMessage(
+                  context,
+                  'Something went wrong. Please try again.',
                 );
               }
             },

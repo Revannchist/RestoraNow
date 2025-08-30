@@ -24,7 +24,6 @@ class OrderProvider with ChangeNotifier {
         reservationId: reservationId,
         menuItemIds: menuItemIds,
       );
-      // BaseProvider.insert just JSON-encodes the map you pass:
       final order = await _api.insert(req.toJson()); // returns OrderModel
       _submitting = false;
       notifyListeners();

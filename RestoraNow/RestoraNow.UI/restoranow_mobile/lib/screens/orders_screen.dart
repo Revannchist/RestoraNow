@@ -19,10 +19,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final uid = context.read<AuthProvider>().userId;
       if (uid != null) {
-        context.read<OrderListProvider>().refreshForUser(uid);
+        await context.read<OrderListProvider>().refreshForUser(uid);
       }
     });
   }
@@ -58,18 +58,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              final uid = context.read<AuthProvider>().userId;
-              if (uid != null) {
-                context.read<OrderListProvider>().refreshForUser(uid);
-              }
-            },
+            onPressed: _refresh,
           ),
         ],
       ),
       body: Column(
         children: [
-          // Toggle: Current / History
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: Row(
@@ -89,9 +83,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
               ],
             ),
           ),
-
           const Divider(height: 1),
-
           Expanded(
             child: listProv.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -142,8 +134,9 @@ class _OrderTile extends StatelessWidget {
     final total = order.total;
     if (total > 0) subtitle.write(' • ${total.toStringAsFixed(2)} KM');
     subtitle.write(' • ${_fmt(order.createdAt.toLocal())}');
-    if (order.reservationId != null)
+    if (order.reservationId != null) {
       subtitle.write(' • Res #${order.reservationId}');
+    }
 
     return ListTile(
       leading: CircleAvatar(
