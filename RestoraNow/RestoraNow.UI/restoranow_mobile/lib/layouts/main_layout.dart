@@ -6,6 +6,7 @@ import '../theme/theme.dart';
 import '../providers/base/auth_provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/restaurant_provider.dart';
 import '../widgets/avatar_view.dart';
 import '../widgets/menu_dialogs.dart';
 
@@ -37,26 +38,33 @@ class _MainLayoutState extends State<MainLayout> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _mePrefetched = false;
   bool _authRedirected = false;
+  bool _restaurantPrefetched = false; // ← NEW
 
   // Top-level destinations shown in the drawer.
-  static const _navItems = <_NavItem>[
-    _NavItem(
-      label: 'Home',
-      route: '/home',
-      icon: Icons.space_dashboard_outlined,
-    ),
-    _NavItem(label: 'Menu', route: '/menu', icon: Icons.menu_book_outlined),
-    _NavItem(
-      label: 'Reservations',
-      route: '/reservations',
-      icon: Icons.event_seat_outlined,
-    ),
-    _NavItem(
-      label: 'Orders',
-      route: '/orders',
-      icon: Icons.receipt_long_outlined,
-    ),
-  ];
+static const _navItems = <_NavItem>[
+  _NavItem(
+    label: 'Home',
+    route: '/home',
+    icon: Icons.space_dashboard_outlined,
+  ),
+  _NavItem( // ← add this block
+    label: 'Restaurant',
+    route: '/restaurant',
+    icon: Icons.storefront_outlined,
+  ),
+  _NavItem(label: 'Menu', route: '/menu', icon: Icons.menu_book_outlined),
+  _NavItem(
+    label: 'Reservations',
+    route: '/reservations',
+    icon: Icons.event_seat_outlined,
+  ),
+  _NavItem(
+    label: 'Orders',
+    route: '/orders',
+    icon: Icons.receipt_long_outlined,
+  ),
+];
+
 
   Set<String> get _topLevelRoutes => _navItems.map((e) => e.route).toSet();
 
@@ -79,6 +87,13 @@ class _MainLayoutState extends State<MainLayout> {
     if (auth.isAuthenticated && !_mePrefetched) {
       _mePrefetched = true;
       context.read<UserProvider>().fetchMe();
+    }
+
+    // Prefetch restaurant info (once) — doesn't require auth in most setups,
+    // but safe to do it here too.
+    if (!_restaurantPrefetched) {
+      _restaurantPrefetched = true;
+      context.read<RestaurantProvider>().fetchRestaurant();
     }
   }
 
@@ -121,8 +136,14 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     final userProvider = context.watch<UserProvider>();
-    final me = userProvider.currentUser;
+    final restaurantName = context.select<RestaurantProvider, String?>(
+      (p) => p.restaurant?.name,
+    );
+    final restaurantAddress = context.select<RestaurantProvider, String?>(
+      (p) => p.restaurant?.address,
+    );
 
+    final me = userProvider.currentUser;
     final initials = _initialsFrom(me?.firstName, me?.lastName);
     final fullName = _fullNameFrom(me?.firstName, me?.lastName);
 
@@ -176,6 +197,8 @@ class _MainLayoutState extends State<MainLayout> {
       drawer: Drawer(
         child: SafeArea(
           child: _AppDrawer(
+            brandName: restaurantName ?? 'RestoraNow', 
+            brandSubtitle: restaurantAddress,
             initials: initials,
             fullName: fullName,
             avatarBytes: userProvider.avatarBytes,
@@ -210,6 +233,8 @@ class _MainLayoutState extends State<MainLayout> {
 
 class _AppDrawer extends StatelessWidget {
   const _AppDrawer({
+    required this.brandName,
+    required this.brandSubtitle,
     required this.initials,
     required this.fullName,
     required this.avatarBytes,
@@ -219,6 +244,8 @@ class _AppDrawer extends StatelessWidget {
     required this.onSelect,
   });
 
+  final String brandName;
+  final String? brandSubtitle; // ← optional (e.g., address)
   final String initials;
   final String fullName;
   final Uint8List? avatarBytes;
@@ -229,10 +256,14 @@ class _AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final subtitleStyle = Theme.of(
+      context,
+    ).textTheme.labelSmall?.copyWith(color: Colors.black54);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Brand row
+        // Brand block
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Row(
@@ -250,15 +281,28 @@ class _AppDrawer extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'RestoraNow',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      brandName,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                      ),
+                    ),
+                    if (brandSubtitle != null &&
+                        brandSubtitle!.trim().isNotEmpty)
+                      Text(
+                        brandSubtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: subtitleStyle,
+                      ),
+                  ],
                 ),
               ),
             ],

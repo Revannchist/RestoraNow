@@ -14,12 +14,15 @@ import 'providers/order_provider.dart';
 import 'providers/order_list_provider.dart';
 import 'providers/menu_item_image_provider.dart';
 import 'providers/address_provider.dart';
+import 'providers/restaurant_provider.dart';
+import 'providers/restaurant_review_provider.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/reservations_screen.dart';
 import 'screens/orders_screen.dart';
+import 'screens/restaurant_info_screen.dart';
 
 class Env {
   static String get apiUrl {
@@ -54,6 +57,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => OrderListProvider()),
         ChangeNotifierProvider(create: (_) => AddressProvider()),
+        ChangeNotifierProvider(create: (_) => RestaurantProvider()),
+        ChangeNotifierProvider(create: (_) => RestaurantReviewProvider()),
       ],
       child: MaterialApp(
         title: 'RestoraNow Mobile',
@@ -69,6 +74,7 @@ class MyApp extends StatelessWidget {
           '/menu': (_) => const MenuScreen(),
           '/orders': (_) => const OrdersScreen(),
           '/addresses': (_) => const AddressesScreen(),
+          '/restaurant': (_) => const RestaurantInfoScreen(),
         },
       ),
     );

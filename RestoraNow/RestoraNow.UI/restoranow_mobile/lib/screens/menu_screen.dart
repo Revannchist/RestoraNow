@@ -1,29 +1,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/menu_item_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../models/menu_item_model.dart';
-import '../../widgets/menu_dialogs.dart';
-
-// simple in-memory cache for decoded base64 (prevents flicker)
-class _MemImgCache {
-  static final _map = <String, Uint8List>{};
-
-  static Uint8List? fromDataUri(String raw) {
-    if (_map.containsKey(raw)) return _map[raw];
-    try {
-      final cleaned = raw.replaceAll(RegExp(r'data:image/[^;]+;base64,'), '');
-      final bytes = base64Decode(cleaned);
-      _map[raw] = bytes;
-      return bytes;
-    } catch (_) {
-      return null;
-    }
-  }
-}
+import '../../widgets/menu_dialogs.dart'; // showCartSheet + showMenuItemQuickView
 
 class MenuScreen extends StatefulWidget {
   final int? reservationId;
@@ -106,9 +90,9 @@ class _MenuScreenState extends State<MenuScreen> {
               onPressed: cart.totalQty == 0
                   ? null
                   : () => showCartSheet(
-                      context,
-                      reservationId: widget.reservationId,
-                    ),
+                        context,
+                        reservationId: widget.reservationId,
+                      ),
               child: Text(
                 cart.totalQty == 0
                     ? 'Cart is empty'
@@ -319,7 +303,8 @@ class _MenuItemCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: item.isAvailable ? () => cart.add(item) : null,
+        // Open QUICK VIEW popup (always), add/remove inside the popup or via stepper
+        onTap: () => showMenuItemQuickView(context, item),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -365,14 +350,13 @@ class _MenuItemCard extends StatelessWidget {
                         if (qty == 0) {
                           return _SmallIconButton(
                             icon: Icons.add_circle_outline,
-                            onPressed: () => ctx.read<CartProvider>().add(item),
+                            onPressed: () => cart.add(item),
                           );
                         }
                         return _QtyStepper(
                           qty: qty,
-                          onDec: () =>
-                              ctx.read<CartProvider>().removeOne(item.id),
-                          onInc: () => ctx.read<CartProvider>().add(item),
+                          onDec: () => cart.removeOne(item.id),
+                          onInc: () => cart.add(item),
                         );
                       },
                     ),
@@ -407,9 +391,7 @@ class _MenuItemImage extends StatelessWidget {
         filterQuality: FilterQuality.medium,
       );
     } else {
-      final url = raw
-          .replaceFirst('://localhost', '://10.0.2.2')
-          .replaceFirst('://127.0.0.1', '://10.0.2.2');
+      final url = _absoluteFromEnvLocal(raw);
       return Image.network(
         url,
         fit: BoxFit.cover,
@@ -420,6 +402,50 @@ class _MenuItemImage extends StatelessWidget {
             : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         filterQuality: FilterQuality.medium,
       );
+    }
+  }
+}
+
+// ---------- helpers: env-aware image URL ----------
+String _apiBaseLocal() {
+  final v = dotenv.env['API_URL'] ?? 'http://10.0.2.2:5294/api/';
+  return v.endsWith('/') ? v : '$v/';
+}
+
+String _absoluteFromEnvLocal(String raw) {
+  if (raw.isEmpty || raw.startsWith('data:image/')) return raw;
+
+  Uri? parsed;
+  try { parsed = Uri.parse(raw); } catch (_) {}
+
+  if (parsed != null && parsed.hasScheme) {
+    if (parsed.host == 'localhost' || parsed.host == '127.0.0.1') {
+      final base = Uri.parse(_apiBaseLocal());
+      return parsed
+          .replace(scheme: base.scheme, host: base.host, port: base.port)
+          .toString();
+    }
+    return raw;
+  }
+
+  final base = Uri.parse(_apiBaseLocal());
+  final rel = raw.startsWith('/') ? raw.substring(1) : raw;
+  return base.resolve(rel).toString();
+}
+
+// simple in-memory cache for decoded base64 (prevents flicker)
+class _MemImgCache {
+  static final _map = <String, Uint8List>{};
+
+  static Uint8List? fromDataUri(String raw) {
+    if (_map.containsKey(raw)) return _map[raw];
+    try {
+      final cleaned = raw.replaceAll(RegExp(r'data:image/[^;]+;base64,'), '');
+      final bytes = base64Decode(cleaned);
+      _map[raw] = bytes;
+      return bytes;
+    } catch (_) {
+      return null;
     }
   }
 }

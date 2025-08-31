@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/cart_provider.dart';
 import '../providers/base/auth_provider.dart';
 import '../providers/reservation_provider.dart';
+import '../providers/address_provider.dart';
 import '../models/reservation_model.dart';
+import '../models/address_model.dart';
+import '../models/menu_item_model.dart';
 import '../screens/checkout_screen.dart';
+import '../screens/addresses_screen.dart';
 
 /// Open the cart sheet (optionally preselect a reservation).
 void showCartSheet(BuildContext context, {int? reservationId}) {
@@ -18,6 +23,39 @@ void showCartSheet(BuildContext context, {int? reservationId}) {
   );
 }
 
+/// Resolve API base from .env (fallback to emulator-friendly default).
+String _apiBase() {
+  final v = dotenv.env['API_URL'] ?? 'http://10.0.2.2:5294/api/';
+  return v.endsWith('/') ? v : '$v/';
+}
+
+/// Turn any image URL into an absolute URL using API_URL.
+/// - Keeps data URIs as-is
+/// - Rewrites localhost/127.0.0.1 to the host/port from API_URL
+/// - Resolves relative paths against API_URL
+String _absoluteFromEnv(String raw) {
+  if (raw.isEmpty || raw.startsWith('data:image/')) return raw;
+
+  Uri? parsed;
+  try {
+    parsed = Uri.parse(raw);
+  } catch (_) {}
+
+  if (parsed != null && parsed.hasScheme) {
+    if (parsed.host == 'localhost' || parsed.host == '127.0.0.1') {
+      final base = Uri.parse(_apiBase());
+      return parsed
+          .replace(scheme: base.scheme, host: base.host, port: base.port)
+          .toString();
+    }
+    return raw;
+  }
+
+  final base = Uri.parse(_apiBase());
+  final rel = raw.startsWith('/') ? raw.substring(1) : raw;
+  return base.resolve(rel).toString();
+}
+
 class _CartSheet extends StatefulWidget {
   final int? reservationId; // If coming from "Save + Menu"
   const _CartSheet({this.reservationId});
@@ -26,32 +64,36 @@ class _CartSheet extends StatefulWidget {
   State<_CartSheet> createState() => _CartSheetState();
 }
 
-enum _TargetOption { delivery, reservation }
+enum _TargetOption { delivery, pickup, reservation }
 
 class _CartSheetState extends State<_CartSheet> {
   _TargetOption _mode = _TargetOption.delivery;
   int? _selectedReservationId;
 
+  // Delivery (read-only) address line; we always use the user's DEFAULT address.
+  String _selectedAddressLine = '';
+  bool _addrLoading = false;
+
   @override
   void initState() {
     super.initState();
 
-    // If a reservation id is passed in, default to attach-to-reservation mode
+    // If a reservation id is passed in, default to reservation mode.
     if (widget.reservationId != null) {
       _mode = _TargetOption.reservation;
       _selectedReservationId = widget.reservationId;
     }
 
-    // Load my reservations for the dropdown (pending/confirmed, future)
+    // Load current user's reservations and default address.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final userId = context.read<AuthProvider>().userId;
       if (userId == null) return;
 
+      // 1) Reservations
       await context.read<ReservationProvider>().fetchMyReservations(userId);
 
-      // Ensure preselected reservation is actually available
-      final prov = context.read<ReservationProvider>();
-      final exists = prov.reservations.any(
+      final resProv = context.read<ReservationProvider>();
+      final exists = resProv.reservations.any(
         (r) => r.id == _selectedReservationId,
       );
       if (_mode == _TargetOption.reservation &&
@@ -63,11 +105,24 @@ class _CartSheetState extends State<_CartSheet> {
           _selectedReservationId = null;
         });
       }
+
+      // 2) Default address → auto-select
+      await _refreshDefaultAddress(userId);
     });
   }
 
-  // Helpers
+  Future<void> _refreshDefaultAddress(int userId) async {
+    setState(() => _addrLoading = true);
+    await context.read<AddressProvider>().fetchByUser(userId);
+    final def = context.read<AddressProvider>().defaultAddress;
+    if (!mounted) return;
+    setState(() {
+      _selectedAddressLine = _prettyAddress(def);
+      _addrLoading = false;
+    });
+  }
 
+  // ---- Helpers ----
   String _fmtDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -88,7 +143,6 @@ class _CartSheetState extends State<_CartSheet> {
   Widget _thumbFromRaw(String? raw) {
     if (raw == null || raw.isEmpty) return const _ThumbFallback();
 
-    // Data URI
     if (raw.startsWith('data:image/')) {
       try {
         final cleaned = raw.replaceAll(RegExp(r'data:image/[^;]+;base64,'), '');
@@ -108,11 +162,7 @@ class _CartSheetState extends State<_CartSheet> {
       return const _ThumbFallback();
     }
 
-    // Normal URL (fix emulator localhost)
-    final url = raw
-        .replaceFirst('://localhost', '://10.0.2.2')
-        .replaceFirst('://127.0.0.1', '://10.0.2.2');
-
+    final url = _absoluteFromEnv(raw);
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: Image.network(
@@ -125,13 +175,26 @@ class _CartSheetState extends State<_CartSheet> {
     );
   }
 
+  String _prettyAddress(AddressModel? a) {
+    if (a == null) return '';
+    final parts = <String>[
+      a.street,
+      [
+        if ((a.zipCode ?? '').isNotEmpty) a.zipCode!,
+        if ((a.city ?? '').isNotEmpty) a.city!,
+      ].where((x) => x.trim().isNotEmpty).join(' '),
+      if ((a.country ?? '').isNotEmpty) a.country!,
+    ].where((x) => x.trim().isNotEmpty).toList();
+    return parts.join(', ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     final resProv = context.watch<ReservationProvider>();
     final now = DateTime.now();
 
-    // Filter reservations: pending or confirmed, and in the future
+    // Eligible reservations (future + pending/confirmed)
     final eligible =
         resProv.reservations.where((r) {
           final allowed =
@@ -139,11 +202,12 @@ class _CartSheetState extends State<_CartSheet> {
               r.status == ReservationStatus.confirmed;
           final when = _combine(r.reservationDate, r.reservationTime);
           return allowed && when.isAfter(now);
-        }).toList()..sort((a, b) {
-          final adt = _combine(a.reservationDate, a.reservationTime);
-          final bdt = _combine(b.reservationDate, b.reservationTime);
-          return adt.compareTo(bdt);
-        });
+        }).toList()
+          ..sort((a, b) {
+            final adt = _combine(a.reservationDate, a.reservationTime);
+            final bdt = _combine(b.reservationDate, b.reservationTime);
+            return adt.compareTo(bdt);
+          });
 
     // Keep selection valid
     if (_mode == _TargetOption.reservation &&
@@ -179,7 +243,6 @@ class _CartSheetState extends State<_CartSheet> {
           ),
           const SizedBox(height: 8),
 
-          // Dining option / Attach to reservation
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -189,17 +252,33 @@ class _CartSheetState extends State<_CartSheet> {
           ),
           const SizedBox(height: 6),
 
+          // Delivery (default address)
           RadioListTile<_TargetOption>(
             dense: true,
             value: _TargetOption.delivery,
             groupValue: _mode,
-            title: const Text('Delivery / Takeaway (no reservation)'),
+            title: const Text('Delivery / Takeaway'),
+            subtitle: const Text('Use your default delivery address'),
             onChanged: (v) => setState(() {
               _mode = v!;
               _selectedReservationId = null;
             }),
           ),
 
+          // Pickup option
+          RadioListTile<_TargetOption>(
+            dense: true,
+            value: _TargetOption.pickup,
+            groupValue: _mode,
+            title: const Text('Pick up at restaurant'),
+            subtitle: const Text('No address needed'),
+            onChanged: (v) => setState(() {
+              _mode = v!;
+              _selectedReservationId = null;
+            }),
+          ),
+
+          // Attach to reservation
           RadioListTile<_TargetOption>(
             dense: true,
             value: _TargetOption.reservation,
@@ -208,12 +287,13 @@ class _CartSheetState extends State<_CartSheet> {
             subtitle: (resProv.isLoading && eligible.isEmpty)
                 ? const Text('Loading your reservations…')
                 : (eligible.isEmpty
-                      ? const Text('No eligible reservations found.')
-                      : null),
+                    ? const Text('No eligible reservations found.')
+                    : null),
             onChanged: (v) => setState(() {
               _mode = v!;
-              if (eligible.length == 1)
+              if (eligible.length == 1) {
                 _selectedReservationId = eligible.single.id;
+              }
             }),
           ),
 
@@ -239,6 +319,31 @@ class _CartSheetState extends State<_CartSheet> {
                   labelText: 'Select reservation',
                   prefixIcon: Icon(Icons.event_seat_outlined),
                 ),
+              ),
+            ),
+
+          // Delivery address (read-only, always uses DEFAULT)
+          if (_mode == _TargetOption.delivery)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
+              child: _DeliveryAddressView(
+                loading: _addrLoading,
+                addressLine: _selectedAddressLine,
+                onManageAddresses: () async {
+                  // User can change their default address in this screen.
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddressesScreen()),
+                  );
+                  final userId = context.read<AuthProvider>().userId;
+                  if (userId == null || !mounted) return;
+                  await _refreshDefaultAddress(userId); // re-pick default
+                },
+                onUseDefault: () async {
+                  final userId = context.read<AuthProvider>().userId;
+                  if (userId == null) return;
+                  await _refreshDefaultAddress(userId);
+                },
               ),
             ),
 
@@ -314,50 +419,154 @@ class _CartSheetState extends State<_CartSheet> {
           const SizedBox(height: 12),
 
           // Actions
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: cart.items.isEmpty
-                      ? null
-                      : () => context.read<CartProvider>().clear(),
-                  child: const Text('Clear'),
+          SafeArea(
+            top: false,
+            minimum: const EdgeInsets.only(top: 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: cart.items.isEmpty
+                        ? null
+                        : () => context.read<CartProvider>().clear(),
+                    child: const Text('Clear'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: cart.items.isEmpty
-                      ? null
-                      : () {
-                          // Validate reservation selection if needed
-                          int? reservationId;
-                          if (_mode == _TargetOption.reservation) {
-                            if (_selectedReservationId == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Please select a reservation.'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: cart.items.isEmpty
+                        ? null
+                        : () {
+                            // Validate mode
+                            int? reservationId;
+                            String? deliveryAddress;
+
+                            switch (_mode) {
+                              case _TargetOption.reservation:
+                                if (_selectedReservationId == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please select a reservation.',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                reservationId = _selectedReservationId;
+                                break;
+
+                              case _TargetOption.delivery:
+                                if (_selectedAddressLine.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please set a default delivery address.',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                deliveryAddress = _selectedAddressLine.trim();
+                                break;
+
+                              case _TargetOption.pickup:
+                                // Pass a display string so Checkout can show it.
+                                deliveryAddress = 'Pick up at restaurant';
+                                break;
+                            }
+
+                            // Close sheet then push checkout (display-only address).
+                            final nav = Navigator.of(context);
+                            nav.pop();
+                            Future.microtask(() {
+                              nav.push(
+                                MaterialPageRoute(
+                                  builder: (_) => CheckoutScreen(
+                                    reservationId: reservationId,
+                                    deliveryAddress:
+                                        deliveryAddress, // shown for Delivery or Pickup
+                                  ),
                                 ),
                               );
-                              return;
-                            }
-                            reservationId = _selectedReservationId;
-                          }
+                            });
+                          },
+                    child: const Text('Proceed to payment'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-                          // Close the sheet, then push the review/checkout screen
-                          final nav = Navigator.of(context);
-                          nav.pop();
-                          Future.microtask(() {
-                            nav.push(
-                              MaterialPageRoute(
-                                builder: (_) => CheckoutScreen(
-                                  reservationId: reservationId,
-                                ),
-                              ),
-                            );
-                          });
-                        },
-                  child: const Text('Proceed to payment'),
+class _DeliveryAddressView extends StatelessWidget {
+  const _DeliveryAddressView({
+    required this.loading,
+    required this.addressLine,
+    required this.onManageAddresses,
+    required this.onUseDefault,
+  });
+
+  final bool loading;
+  final String addressLine;
+  final VoidCallback onManageAddresses;
+  final VoidCallback onUseDefault;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) return const LinearProgressIndicator(minHeight: 2);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blueGrey.withOpacity(0.2)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          InputDecorator(
+            decoration: const InputDecoration(
+              labelText: 'Delivery address (default)',
+              prefixIcon: Icon(Icons.location_on_outlined),
+              border: OutlineInputBorder(),
+            ),
+            child: Text(
+              addressLine.isEmpty ? 'No default address set' : addressLine,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Flexible(
+                flex: 3,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.book_outlined),
+                  label: const Text(
+                    'Manage addresses',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  onPressed: onManageAddresses,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                flex: 2,
+                child: TextButton(
+                  onPressed: onUseDefault,
+                  child: const Text(
+                    'Use default',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
               ),
             ],
@@ -380,6 +589,239 @@ class _ThumbFallback extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: const Icon(Icons.fastfood, size: 22, color: Colors.grey),
+    );
+  }
+}
+
+// ===================================================================
+// QUICK VIEW: open a bottom sheet with full item info + qty stepper.
+// ===================================================================
+void showMenuItemQuickView(BuildContext context, MenuItemModel item) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (_) => _ItemQuickView(item: item),
+  );
+}
+
+class _ItemQuickView extends StatelessWidget {
+  const _ItemQuickView({required this.item});
+  final MenuItemModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    final qty = context.select<CartProvider, int>((c) => c.qtyOf(item.id));
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // drag handle
+          const SizedBox(height: 8),
+          Container(
+            height: 4, width: 44,
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Image
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: _QuickImage(raw: item.imageUrls.isNotEmpty ? item.imageUrls.first : null),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Title + price
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.name,
+                          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${item.price.toStringAsFixed(2)} KM',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // Category / badges
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: -6,
+                    children: [
+                      if ((item.categoryName ?? '').trim().isNotEmpty)
+                        Chip(
+                          label: Text(item.categoryName!),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                        ),
+                      if (item.isSpecialOfTheDay)
+                        Chip(
+                          label: const Text('Special'),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          backgroundColor: Colors.orange.withOpacity(0.12),
+                          side: BorderSide(color: Colors.orange.withOpacity(0.3)),
+                          labelStyle: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+                        ),
+                      Chip(
+                        label: Text(item.isAvailable ? 'Available' : 'Unavailable'),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        backgroundColor: (item.isAvailable ? Colors.green : Colors.red).withOpacity(0.1),
+                      ),
+                    ],
+                  ),
+
+                  // Description
+                  if ((item.description ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      item.description!.trim(),
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // Qty stepper
+                  Row(
+                    children: [
+                      const Text('Quantity', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      _QtyStepperInline(item: item, qty: qty),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Footer actions
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: item.isAvailable
+                          ? () {
+                              final cart = context.read<CartProvider>();
+                              if (cart.qtyOf(item.id) == 0) cart.add(item);
+                              Navigator.pop(context);
+                            }
+                          : null,
+                      child: Text(qty == 0 ? 'Add to cart' : 'Done'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QtyStepperInline extends StatelessWidget {
+  const _QtyStepperInline({required this.item, required this.qty});
+  final MenuItemModel item;
+  final int qty;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!item.isAvailable) {
+      return const Text('—', style: TextStyle(color: Colors.grey));
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Decrease',
+          icon: const Icon(Icons.remove_circle_outline),
+          onPressed: qty > 0 ? () => context.read<CartProvider>().removeOne(item.id) : null,
+        ),
+        Text('$qty', style: const TextStyle(fontWeight: FontWeight.w600)),
+        IconButton(
+          tooltip: 'Increase',
+          icon: const Icon(Icons.add_circle_outline),
+          onPressed: () => context.read<CartProvider>().add(item),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickImage extends StatelessWidget {
+  const _QuickImage({required this.raw});
+  final String? raw;
+
+  @override
+  Widget build(BuildContext context) {
+    if (raw == null || raw!.isEmpty) return const _QuickFallback();
+    if (raw!.startsWith('data:image/')) {
+      try {
+        final cleaned = raw!.replaceAll(RegExp(r'data:image/[^;]+;base64,'), '');
+        final bytes = base64Decode(cleaned);
+        if (bytes.isEmpty) return const _QuickFallback();
+        return Image.memory(bytes, fit: BoxFit.cover, filterQuality: FilterQuality.medium);
+      } catch (_) {
+        return const _QuickFallback();
+      }
+    }
+    final url = _absoluteFromEnv(raw!);
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const _QuickFallback(),
+      loadingBuilder: (c, w, p) =>
+          p == null ? w : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      filterQuality: FilterQuality.medium,
+    );
+  }
+}
+
+class _QuickFallback extends StatelessWidget {
+  const _QuickFallback();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.grey[200],
+      child: const Center(child: Icon(Icons.fastfood, size: 28, color: Colors.grey)),
     );
   }
 }

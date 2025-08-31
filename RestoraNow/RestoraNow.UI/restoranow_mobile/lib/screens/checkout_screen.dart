@@ -6,8 +6,26 @@ import '../../providers/order_provider.dart';
 import 'payment_screen.dart';
 
 class CheckoutScreen extends StatelessWidget {
-  final int? reservationId; // null => no reservation
-  const CheckoutScreen({super.key, this.reservationId});
+  /// If null, we are NOT attaching to a reservation.
+  final int? reservationId;
+
+  /// Human-readable delivery descriptor for non-reservation flows:
+  /// - For Delivery: the user's selected/default address string
+  /// - For Pickup: a label like "Pick up at restaurant"
+  final String? deliveryAddress;
+
+  const CheckoutScreen({
+    super.key,
+    this.reservationId,
+    this.deliveryAddress,
+  });
+
+  bool _looksLikePickup(String? s) {
+    if (s == null) return false;
+    final t = s.toLowerCase();
+    // Flexible match so you don't rely on one exact string
+    return t.contains('pick up') || t.contains('pickup');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,6 +35,26 @@ class CheckoutScreen extends StatelessWidget {
     final items = cart.items.values.toList();
     final totalQty = cart.totalQty;
     final totalPrice = cart.totalPrice;
+
+    final isReservation = reservationId != null;
+    final isPickup = !isReservation && _looksLikePickup(deliveryAddress);
+    final isDelivery = !isReservation && !isPickup;
+
+    final addressText = (deliveryAddress?.trim().isNotEmpty ?? false)
+        ? deliveryAddress!.trim()
+        : null;
+
+    IconData _modeIcon() {
+      if (isReservation) return Icons.event_seat;
+      if (isPickup) return Icons.storefront; // or Icons.takeout_dining
+      return Icons.local_shipping; // delivery
+    }
+
+    String _modeTitle() {
+      if (isReservation) return 'Attached to reservation #$reservationId';
+      if (isPickup) return 'Pick up at restaurant';
+      return 'Delivery / Takeaway';
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -30,29 +68,78 @@ class CheckoutScreen extends StatelessWidget {
           ? const _EmptyCheckout()
           : Column(
               children: [
+                // --- Mode banner (delivery / pickup / reservation) ---
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: Row(
                     children: [
-                      Icon(
-                        reservationId == null
-                            ? Icons.restaurant
-                            : Icons.event_seat,
-                      ),
+                      Icon(_modeIcon()),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          reservationId == null
-                              ? 'Dine in / Delivery (no reservation)'
-                              : 'Attached to reservation #$reservationId',
+                          _modeTitle(),
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
                   ),
                 ),
+
+                // --- Detail card: Delivery vs Pickup ---
+                if (isDelivery)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Card(
+                      elevation: 0,
+                      color: Theme.of(context).colorScheme.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Theme.of(context).dividerColor),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.location_on_outlined),
+                        title: const Text(
+                          'Delivery address',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          addressText ?? 'No delivery address provided',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: addressText == null
+                                ? Theme.of(context).colorScheme.error
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                if (isPickup)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Card(
+                      elevation: 0,
+                      color: Theme.of(context).colorScheme.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Theme.of(context).dividerColor),
+                      ),
+                      child: const ListTile(
+                        leading: Icon(Icons.storefront),
+                        title: Text(
+                          'Pickup',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text('Pick up at restaurant'),
+                      ),
+                    ),
+                  ),
+
                 const Divider(height: 1),
 
+                // --- Cart items ---
                 Expanded(
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -81,6 +168,8 @@ class CheckoutScreen extends StatelessWidget {
                 ),
 
                 const Divider(height: 1),
+
+                // --- Totals ---
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -102,6 +191,7 @@ class CheckoutScreen extends StatelessWidget {
                   ),
                 ),
 
+                // --- Actions ---
                 SafeArea(
                   top: false,
                   minimum: const EdgeInsets.symmetric(
@@ -124,7 +214,9 @@ class CheckoutScreen extends StatelessWidget {
                           onPressed: (items.isEmpty || orderProv.submitting)
                               ? null
                               : () {
-                                  // Just push; PaymentScreen will handle the rest.
+                                  // If you ever want PaymentScreen to know
+                                  // the delivery/pickup descriptor too,
+                                  // add an optional param there and pass it.
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (_) => PaymentScreen(

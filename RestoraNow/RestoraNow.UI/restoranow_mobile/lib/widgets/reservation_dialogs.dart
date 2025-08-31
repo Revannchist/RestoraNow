@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/reservation_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../../models/reservation_model.dart';
-import '../../../providers/base/base_provider.dart'; // BaseProvider (fixed relative path)
+import '../../../providers/base/base_provider.dart';
 
 class ReservationDialogResult {
   final bool saved;

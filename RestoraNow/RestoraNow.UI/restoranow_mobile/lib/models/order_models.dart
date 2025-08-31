@@ -1,4 +1,3 @@
-// ---------- Status ----------
 enum OrderStatus { pending, preparing, ready, completed, cancelled }
 
 OrderStatus _parseOrderStatusDynamic(dynamic s) {
@@ -229,4 +228,3 @@ List<int> buildMenuItemIdsFromItems(List<OrderItemModel> items) {
   }
   return ids;
 }
-

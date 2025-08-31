@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
 import '../layouts/main_layout.dart';
@@ -21,24 +22,48 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<List<MenuItemModel>> _specialsFuture;
+  late Future<List<MenuItemModel>> _recommendedFuture;
+
   final _menuApi = MenuItemApiService();
 
   @override
   void initState() {
     super.initState();
     _specialsFuture = _fetchSpecials();
+    _recommendedFuture = _fetchRecommended();
   }
 
   Future<List<MenuItemModel>> _fetchSpecials() async {
     final SearchResult<MenuItemModel> res = await _menuApi.get(
-      filter: {
-        'IsSpecialOfTheDay': 'true',
-        'IsAvailable': 'true',
-      },
+      filter: {'IsSpecialOfTheDay': 'true', 'IsAvailable': 'true'},
       page: 1,
       pageSize: 3,
     );
     return res.items;
+  }
+
+  Future<List<MenuItemModel>> _fetchRecommended() async {
+    final meId = context.read<AuthProvider>().userId;
+    final res = await _menuApi.get(
+      filter: {
+        // If your API supports per-user recommendations, it can use this:
+        if (meId != null) 'UserId': '$meId',
+        'Recommended': 'true',
+        'IsAvailable': 'true',
+      },
+      page: 1,
+      pageSize: 10,
+    );
+
+    if (res.items.isNotEmpty) return res.items;
+
+    // Fallback: just some available items
+    final alt = await _menuApi.get(
+      filter: {'IsAvailable': 'true'},
+      page: 1,
+      pageSize: 10,
+    );
+    return alt.items;
   }
 
   @override
@@ -56,34 +81,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Dashboard placeholder for quick access to key features.',
+            'Discover today’s special and picks tuned to your taste.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 24),
 
-          // ===== Meal of the Day =====
-          Row(
-            children: [
-              const Text(
-                'Meal of the Day',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'Special',
-                  style: TextStyle(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 24),
+          const _SectionHeader(
+            title: 'Meal of the Day',
+            pill: _Pill(label: 'Special', color: Colors.orange),
           ),
           const SizedBox(height: 10),
 
@@ -91,18 +96,11 @@ class _HomeScreenState extends State<HomeScreen> {
             future: _specialsFuture,
             builder: (context, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
-                );
+                return const _HScrollerLoading();
               }
               if (snap.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    "Couldn't load today's special: ${snap.error}",
-                    style: const TextStyle(color: Colors.red),
-                  ),
+                return _ErrorText(
+                  "Couldn't load today's special: ${snap.error}",
                 );
               }
               final items = snap.data ?? const <MenuItemModel>[];
@@ -110,44 +108,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 return const Text('No special is set for today.');
               }
 
-              return SizedBox(
-                height: 240, // enough to avoid overflows
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) => _SpecialCard(item: items[i]),
-                ),
-              );
+              return _HorizontalMenuScroller(items: items);
             },
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
+          const _SectionHeader(title: 'Recommended for you'),
+          const SizedBox(height: 10),
 
-          // Quick nav cards
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _QuickCard(
-                title: 'Orders',
-                subtitle: 'View and manage',
-                icon: Icons.receipt_long_outlined,
-                onTap: () => Navigator.pushReplacementNamed(context, '/orders'),
-              ),
-              _QuickCard(
-                title: 'Reservations',
-                subtitle: 'Today’s bookings',
-                icon: Icons.event_seat_outlined,
-                onTap: () => Navigator.pushReplacementNamed(context, '/reservations'),
-              ),
-              _QuickCard(
-                title: 'Menu',
-                subtitle: 'Items & categories',
-                icon: Icons.menu_book_outlined,
-                onTap: () => Navigator.pushReplacementNamed(context, '/menu'),
-              ),
-            ],
+          FutureBuilder<List<MenuItemModel>>(
+            future: _recommendedFuture,
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const _HScrollerLoading();
+              }
+              if (snap.hasError) {
+                return _ErrorText(
+                  "Couldn't load recommendations: ${snap.error}",
+                );
+              }
+              final items = snap.data ?? const <MenuItemModel>[];
+              if (items.isEmpty) {
+                return const Text(
+                  'Your recommendations will appear here as you start ordering.',
+                );
+              }
+
+              return _HorizontalMenuScroller(items: items);
+            },
           ),
         ],
       ),
@@ -155,9 +143,105 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _SpecialCard extends StatelessWidget {
+/// Simple section header with optional pill badge.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, this.pill});
+  final String title;
+  final _Pill? pill;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        if (pill != null) ...[const SizedBox(width: 8), pill!],
+      ],
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// Horizontal scroller of menu item cards.
+class _HorizontalMenuScroller extends StatelessWidget {
+  const _HorizontalMenuScroller({required this.items});
+  final List<MenuItemModel> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 240,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, i) => _MenuCard(item: items[i]),
+      ),
+    );
+  }
+}
+
+class _HScrollerLoading extends StatelessWidget {
+  const _HScrollerLoading();
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 240,
+      child: Row(
+        children: List.generate(
+          3,
+          (_) => Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorText extends StatelessWidget {
+  const _ErrorText(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) =>
+      Text(text, style: const TextStyle(color: Colors.red));
+}
+
+class _MenuCard extends StatelessWidget {
   final MenuItemModel item;
-  const _SpecialCard({required this.item});
+  const _MenuCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
@@ -176,15 +260,12 @@ class _SpecialCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Image uses flexible top area
                 Expanded(
                   child: _MenuImageSmart(
                     menuItemId: item.id,
                     urls: item.imageUrls,
                   ),
                 ),
-
-                // Name (1–2 lines)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                   child: Text(
@@ -194,8 +275,6 @@ class _SpecialCard extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
-
-                // Price + stepper
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
                   child: Row(
@@ -209,7 +288,10 @@ class _SpecialCard extends StatelessWidget {
                         ),
                       ),
                       if (!item.isAvailable)
-                        const Text('Unavailable', style: TextStyle(color: Colors.grey))
+                        const Text(
+                          'Unavailable',
+                          style: TextStyle(color: Colors.grey),
+                        )
                       else if (qty == 0)
                         IconButton(
                           tooltip: 'Add',
@@ -225,7 +307,12 @@ class _SpecialCard extends StatelessWidget {
                               icon: const Icon(Icons.remove_circle_outline),
                               onPressed: () => cart.removeOne(item.id),
                             ),
-                            Text('$qty', style: const TextStyle(fontWeight: FontWeight.w600)),
+                            Text(
+                              '$qty',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             IconButton(
                               tooltip: 'Increase',
                               icon: const Icon(Icons.add_circle_outline),
@@ -245,9 +332,10 @@ class _SpecialCard extends StatelessWidget {
   }
 }
 
-/// Smart image that:
-/// 1) uses provided imageUrls if present (base64 or http)
-/// 2) if empty, fetches the first image via MenuItemImageApiService and caches it
+/// Smart image:
+/// 1) Uses provided imageUrls if present (data URI or http/relative)
+/// 2) Else fetches the first image via MenuItemImageApiService
+/// 3) Network URLs are resolved against API_URL from .env
 class _MenuImageSmart extends StatefulWidget {
   final int menuItemId;
   final List<String> urls;
@@ -259,10 +347,9 @@ class _MenuImageSmart extends StatefulWidget {
 
 class _MenuImageSmartState extends State<_MenuImageSmart> {
   static final _memBase64Cache = <String, Uint8List>{};
-  static final _firstImageCache = <int, Uint8List?>{}; // menuItemId -> bytes (nullable)
+  static final _firstImageCache = <int, Uint8List?>{};
   final _imgApi = MenuItemImageApiService();
-
-  Uint8List? _bytes; // resolved bytes to display (if any)
+  Uint8List? _bytes;
 
   @override
   void initState() {
@@ -273,7 +360,8 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
   @override
   void didUpdateWidget(covariant _MenuImageSmart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.menuItemId != widget.menuItemId || oldWidget.urls != widget.urls) {
+    if (oldWidget.menuItemId != widget.menuItemId ||
+        oldWidget.urls != widget.urls) {
       _bytes = null;
       _resolve();
     }
@@ -287,8 +375,7 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
         setState(() => _bytes = _decodeDataUri(raw));
         return;
       } else {
-        // We'll use network image at build time
-        setState(() => _bytes = null);
+        setState(() => _bytes = null); // will use network path in build
         return;
       }
     }
@@ -307,7 +394,9 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
       );
       if (result.items.isNotEmpty) {
         final url = result.items.first.url;
-        final bytes = url.startsWith('data:image/') ? _decodeDataUri(url) : null;
+        final bytes = url.startsWith('data:image/')
+            ? _decodeDataUri(url)
+            : null;
         _firstImageCache[widget.menuItemId] = bytes;
         if (mounted) setState(() => _bytes = bytes);
       } else {
@@ -334,7 +423,6 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
 
   @override
   Widget build(BuildContext context) {
-    // Prefer resolved memory bytes (base64)
     if (_bytes != null) {
       return Image.memory(
         _bytes!,
@@ -344,23 +432,22 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
       );
     }
 
-    // If urls had a http(s) URL, show it
-    if (widget.urls.isNotEmpty && !widget.urls.first.startsWith('data:image/')) {
-      final fixed = widget.urls.first
-          .replaceFirst('://localhost', '://10.0.2.2')
-          .replaceFirst('://127.0.0.1', '://10.0.2.2');
+    // If urls had a URL (absolute or relative), resolve against .env base
+    if (widget.urls.isNotEmpty &&
+        !widget.urls.first.startsWith('data:image/')) {
+      final url = _absoluteFromEnv(widget.urls.first);
       return Image.network(
-        fixed,
+        url,
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (_, __, ___) => const _ImageFallback(),
-        loadingBuilder: (c, w, p) =>
-            p == null ? w : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        loadingBuilder: (c, w, p) => p == null
+            ? w
+            : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         filterQuality: FilterQuality.medium,
       );
     }
 
-    // Otherwise fallback
     return const _ImageFallback();
   }
 }
@@ -378,49 +465,32 @@ class _ImageFallback extends StatelessWidget {
   }
 }
 
-class _QuickCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback onTap;
+// ---------- URL helpers using .env API_URL ----------
 
-  const _QuickCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.onTap,
-  });
+String _apiBase() {
+  final v = (dotenv.env['API_URL'] ?? 'http://10.0.2.2:5294/api/').trim();
+  return v.endsWith('/') ? v : '$v/';
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 220,
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(icon, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, size: 18),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+String _absoluteFromEnv(String raw) {
+  if (raw.isEmpty || raw.startsWith('data:image/')) return raw;
+
+  Uri? parsed;
+  try {
+    parsed = Uri.parse(raw);
+  } catch (_) {}
+
+  if (parsed != null && parsed.hasScheme) {
+    if (parsed.host == 'localhost' || parsed.host == '127.0.0.1') {
+      final base = Uri.parse(_apiBase());
+      return parsed
+          .replace(scheme: base.scheme, host: base.host, port: base.port)
+          .toString();
+    }
+    return raw;
   }
+
+  final base = Uri.parse(_apiBase());
+  final rel = raw.startsWith('/') ? raw.substring(1) : raw;
+  return base.resolve(rel).toString();
 }
