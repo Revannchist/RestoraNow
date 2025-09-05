@@ -17,6 +17,7 @@ import 'providers/menu_item_image_provider.dart';
 import 'providers/address_provider.dart';
 import 'providers/restaurant_provider.dart';
 import 'providers/restaurant_review_provider.dart';
+import 'providers/recommendations_provider.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -61,6 +62,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RestaurantProvider()),
         ChangeNotifierProvider(create: (_) => RestaurantReviewProvider()),
         ChangeNotifierProvider(create: (_) => MenuItemReviewProvider()),
+        ChangeNotifierProvider(create: (_) => RecommendationsProvider()),
       ],
       child: MaterialApp(
         title: 'RestoraNow Mobile',

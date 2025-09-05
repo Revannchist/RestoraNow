@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../layouts/main_layout.dart';
 import '../providers/base/auth_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/recommendations_provider.dart';
 import '../models/menu_item_model.dart';
 
 import '../core/menu_item_api_service.dart';
@@ -21,16 +22,46 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Specials
   late Future<List<MenuItemModel>> _specialsFuture;
-  late Future<List<MenuItemModel>> _recommendedFuture;
-
   final _menuApi = MenuItemApiService();
+
+  // Track auth/user changes so we can refresh recommendations after restore/login/logout
+  int? _lastUserId;
+  bool _bootstrapped = false;
 
   @override
   void initState() {
     super.initState();
     _specialsFuture = _fetchSpecials();
-    _recommendedFuture = _fetchRecommended();
+
+    // Try loading recs once after first frame (works if token was already available)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_bootstrapped) {
+        _bootstrapped = true;
+        if (mounted) {
+          context.read<RecommendationsProvider>().load(take: 10);
+        }
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = context.watch<AuthProvider>();
+
+    // Wait until token restoration finishes; then react to userId changes
+    if (!auth.restoring) {
+      if (auth.userId != _lastUserId) {
+        _lastUserId = auth.userId;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            context.read<RecommendationsProvider>().load(take: 10);
+          }
+        });
+      }
+    }
   }
 
   Future<List<MenuItemModel>> _fetchSpecials() async {
@@ -42,27 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return res.items;
   }
 
-  Future<List<MenuItemModel>> _fetchRecommended() async {
-    final meId = context.read<AuthProvider>().userId;
-    final res = await _menuApi.get(
-      filter: {
-        if (meId != null) 'UserId': '$meId',
-        'Recommended': 'true',
-        'IsAvailable': 'true',
-      },
-      page: 1,
-      pageSize: 10,
-    );
-
-    if (res.items.isNotEmpty) return res.items;
-
-    // Fallback: just some available items
-    final alt = await _menuApi.get(
-      filter: {'IsAvailable': 'true'},
-      page: 1,
-      pageSize: 10,
-    );
-    return alt.items;
+  Future<void> _refresh() async {
+    // Re-run specials
+    setState(() => _specialsFuture = _fetchSpecials());
+    // Re-run recommendations
+    await context.read<RecommendationsProvider>().load(take: 10);
   }
 
   @override
@@ -71,72 +86,84 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return MainLayout(
       title: 'Home',
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'Welcome ${auth.username ?? 'there'}!',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Discover today’s special and picks tuned to your taste.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+      child: RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              'Welcome ${auth.username ?? 'there'}!',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Discover today’s special and picks tuned to your taste.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
 
-          const SizedBox(height: 24),
-          const _SectionHeader(
-            title: 'Meal of the Day',
-            pill: _Pill(label: 'Special', color: Colors.orange),
-          ),
-          const SizedBox(height: 10),
+            // ===== Meal of the Day =====
+            const SizedBox(height: 24),
+            const _SectionHeader(
+              title: 'Meal of the Day',
+              pill: _Pill(label: 'Special', color: Colors.orange),
+            ),
+            const SizedBox(height: 10),
 
-          FutureBuilder<List<MenuItemModel>>(
-            future: _specialsFuture,
-            builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const _HScrollerLoading();
-              }
-              if (snap.hasError) {
-                return _ErrorText(
-                  "Couldn't load today's special: ${snap.error}",
-                );
-              }
-              final items = snap.data ?? const <MenuItemModel>[];
-              if (items.isEmpty) {
-                return const Text('No special is set for today.');
-              }
+            FutureBuilder<List<MenuItemModel>>(
+              future: _specialsFuture,
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const _HScrollerLoading();
+                }
+                if (snap.hasError) {
+                  return _ErrorText(
+                    "Couldn't load today's special: ${snap.error}",
+                    onRetry: () => setState(() {
+                      _specialsFuture = _fetchSpecials();
+                    }),
+                  );
+                }
+                final items = snap.data ?? const <MenuItemModel>[];
+                if (items.isEmpty) {
+                  return const Text('No special is set for today.');
+                }
+                return _HorizontalMenuScroller(items: items);
+              },
+            ),
 
-              return _HorizontalMenuScroller(items: items);
-            },
-          ),
+            // ===== Recommended for you =====
+            const SizedBox(height: 28),
+            const _SectionHeader(title: 'Recommended for you'),
+            const SizedBox(height: 10),
 
-          const SizedBox(height: 28),
-          const _SectionHeader(title: 'Recommended for you'),
-          const SizedBox(height: 10),
-
-          FutureBuilder<List<MenuItemModel>>(
-            future: _recommendedFuture,
-            builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const _HScrollerLoading();
-              }
-              if (snap.hasError) {
-                return _ErrorText(
-                  "Couldn't load recommendations: ${snap.error}",
-                );
-              }
-              final items = snap.data ?? const <MenuItemModel>[];
-              if (items.isEmpty) {
-                return const Text(
-                  'Your recommendations will appear here as you start ordering.',
-                );
-              }
-
-              return _HorizontalMenuScroller(items: items);
-            },
-          ),
-        ],
+            Consumer<RecommendationsProvider>(
+              builder: (context, recProv, _) {
+                if (recProv.isLoading) {
+                  return const _HScrollerLoading();
+                }
+                if (recProv.error != null) {
+                  return _ErrorText(
+                    "Couldn't load recommendations: ${recProv.error}",
+                    onRetry: () => recProv.load(take: 10),
+                  );
+                }
+                final items = recProv.items;
+                if (items.isEmpty) {
+                  final authed = context.select<AuthProvider, bool>(
+                    (a) => a.isAuthenticated,
+                  );
+                  return Text(
+                    authed
+                        ? 'Your recommendations will appear here as you start ordering.'
+                        : 'Sign in to see personalized picks.',
+                  );
+                }
+                return _HorizontalMenuScroller(items: items);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -231,11 +258,25 @@ class _HScrollerLoading extends StatelessWidget {
 }
 
 class _ErrorText extends StatelessWidget {
-  const _ErrorText(this.text);
+  const _ErrorText(this.text, {this.onRetry});
   final String text;
+  final VoidCallback? onRetry;
+
   @override
-  Widget build(BuildContext context) =>
-      Text(text, style: const TextStyle(color: Colors.red));
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Expanded(
+        child: Text(text, style: const TextStyle(color: Colors.red)),
+      ),
+      if (onRetry != null)
+        TextButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Retry'),
+        ),
+    ],
+  );
 }
 
 class _MenuCard extends StatelessWidget {
@@ -262,7 +303,7 @@ class _MenuCard extends StatelessWidget {
                 Expanded(
                   child: _MenuImageSmart(
                     menuItemId: item.id,
-                    imageUrl: item.imageUrl, // <- single image
+                    imageUrl: item.imageUrl, // single image (data URI or URL)
                   ),
                 ),
                 Padding(
@@ -346,14 +387,13 @@ class _MenuImageSmart extends StatefulWidget {
 
 class _MenuImageSmartState extends State<_MenuImageSmart> {
   static final _memBase64Cache = <String, Uint8List>{};
-  static final _firstUrlCache = <int, String?>{}; // caches fetched URL
-  static final _firstBytesCache =
-      <int, Uint8List?>{}; // caches decoded bytes for data URIs
+  static final _firstUrlCache = <int, String?>{}; // per-item URL cache
+  static final _firstBytesCache = <int, Uint8List?>{}; // bytes for data URIs
 
   final _imgApi = MenuItemImageApiService();
 
-  String? _resolvedUrl; // final URL (from widget.imageUrl or fetched)
-  Uint8List? _bytes; // decoded bytes if data URI
+  String? _resolvedUrl;
+  Uint8List? _bytes;
 
   @override
   void initState() {
@@ -373,28 +413,25 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
   }
 
   Future<void> _resolve() async {
-    // 1) If provided by the item (preferred)
+    // Prefer item-provided image
     if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
       final raw = widget.imageUrl!;
       _resolvedUrl = raw;
-      if (raw.startsWith('data:image/')) {
-        _bytes = _decodeDataUri(raw);
-      } else {
-        _bytes = null; // use network in build
-      }
+      _bytes = raw.startsWith('data:image/') ? _decodeDataUri(raw) : null;
       if (mounted) setState(() {});
       return;
     }
 
-    // 2) Otherwise: use per-item cache or fetch once
+    // Use one-time fetch/cache per item
     if (_firstUrlCache.containsKey(widget.menuItemId)) {
       _resolvedUrl = _firstUrlCache[widget.menuItemId];
-      _bytes = _resolvedUrl != null && _resolvedUrl!.startsWith('data:image/')
-          ? (_firstBytesCache[widget.menuItemId] ??
-                _decodeDataUri(_resolvedUrl!))
-          : null;
       if (_resolvedUrl != null && _resolvedUrl!.startsWith('data:image/')) {
+        _bytes =
+            _firstBytesCache[widget.menuItemId] ??
+            _decodeDataUri(_resolvedUrl!);
         _firstBytesCache[widget.menuItemId] = _bytes;
+      } else {
+        _bytes = null;
       }
       if (mounted) setState(() {});
       return;
@@ -443,7 +480,6 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
 
   @override
   Widget build(BuildContext context) {
-    // Data URI rendered from memory
     if (_bytes != null) {
       return Image.memory(
         _bytes!,
@@ -453,7 +489,6 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
       );
     }
 
-    // Network/relative URL
     final url = _resolvedUrl;
     if (url != null && url.isNotEmpty && !url.startsWith('data:image/')) {
       final abs = _absoluteFromEnv(url);
@@ -469,7 +504,6 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
       );
     }
 
-    // Fallback
     return const _ImageFallback();
   }
 }
@@ -488,7 +522,6 @@ class _ImageFallback extends StatelessWidget {
 }
 
 // ---------- URL helpers using .env API_URL ----------
-
 String _apiBase() {
   final v = (dotenv.env['API_URL'] ?? 'http://10.0.2.2:5294/api/').trim();
   return v.endsWith('/') ? v : '$v/';

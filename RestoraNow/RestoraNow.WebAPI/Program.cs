@@ -8,6 +8,8 @@ using RestoraNow.Services.Data;
 using RestoraNow.Services.Entities;
 using RestoraNow.Services.Implementations;
 using RestoraNow.Services.Interfaces;
+using RestoraNow.Services.Interfaces.Base;
+using RestoraNow.Services.Recommendations;
 using RestoraNow.WebAPI.Helpers;
 using RestoraNow.WebAPI.Middleware;
 using System.Security.Claims;
@@ -39,6 +41,7 @@ namespace RestoraNow.WebAPI
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IUserImageService, UserImageService>();
             builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+            builder.Services.AddScoped<IMenuRecommendationService, MenuRecommendationService>();
 
             builder.Services.AddScoped<DataSeeder>(); //Data Seeder
             builder.Services.AddHttpContextAccessor();
