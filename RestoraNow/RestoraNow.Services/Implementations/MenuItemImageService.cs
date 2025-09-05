@@ -21,6 +21,7 @@ namespace RestoraNow.Services.Implementations
 
         protected override IQueryable<MenuItemImage> AddInclude(IQueryable<MenuItemImage> query)
         {
+            // Not strictly required unless your Response exposes MenuItem fields.
             return query.Include(m => m.MenuItem);
         }
 
@@ -32,12 +33,26 @@ namespace RestoraNow.Services.Implementations
             return query;
         }
 
+        // ✅ Upsert behavior: one image per MenuItem
         public override async Task<MenuItemImageResponse> InsertAsync(MenuItemImageRequest request)
         {
-            var menuItemExists = await _context.MenuItem.AnyAsync(m => m.Id == request.MenuItemId);
-            if (!menuItemExists)
+            var exists = await _context.MenuItem.AnyAsync(m => m.Id == request.MenuItemId);
+            if (!exists)
                 throw new KeyNotFoundException($"Menu item with ID {request.MenuItemId} not found.");
 
+            var existingImage = await _context.MenuItemImages
+                .FirstOrDefaultAsync(i => i.MenuItemId == request.MenuItemId);
+
+            if (existingImage != null)
+            {
+                // Update the existing record (upsert)
+                existingImage.Url = request.Url;
+                existingImage.Description = request.Description;
+                await _context.SaveChangesAsync();
+                return _mapper.Map<MenuItemImageResponse>(existingImage);
+            }
+
+            // No image yet → create new
             return await base.InsertAsync(request);
         }
 
@@ -46,6 +61,15 @@ namespace RestoraNow.Services.Implementations
             var image = await _context.MenuItemImages.FindAsync(id);
             if (image == null)
                 throw new KeyNotFoundException($"Menu item image with ID {id} was not found.");
+
+            // Guard: if moving to another MenuItem, ensure that MenuItem doesn't already have an image
+            if (image.MenuItemId != request.MenuItemId)
+            {
+                var targetHasImage = await _context.MenuItemImages
+                    .AnyAsync(i => i.MenuItemId == request.MenuItemId && i.Id != id);
+                if (targetHasImage)
+                    throw new InvalidOperationException("That menu item already has an image.");
+            }
 
             var menuItemExists = await _context.MenuItem.AnyAsync(m => m.Id == request.MenuItemId);
             if (!menuItemExists)

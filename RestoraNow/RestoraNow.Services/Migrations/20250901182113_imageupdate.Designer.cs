@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RestoraNow.Services.Data;
 
@@ -11,9 +12,11 @@ using RestoraNow.Services.Data;
 namespace RestoraNow.Services.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250901182113_imageupdate")]
+    partial class imageupdate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -261,6 +264,9 @@ namespace RestoraNow.Services.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsAvailable")
                         .HasColumnType("bit");
 
@@ -307,8 +313,7 @@ namespace RestoraNow.Services.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MenuItemId")
-                        .IsUnique();
+                    b.HasIndex("MenuItemId");
 
                     b.ToTable("MenuItemImages");
                 });
@@ -802,8 +807,8 @@ namespace RestoraNow.Services.Migrations
             modelBuilder.Entity("RestoraNow.Services.Entities.MenuItemImage", b =>
                 {
                     b.HasOne("RestoraNow.Services.Entities.MenuItem", "MenuItem")
-                        .WithOne("Image")
-                        .HasForeignKey("RestoraNow.Services.Entities.MenuItemImage", "MenuItemId")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -943,8 +948,6 @@ namespace RestoraNow.Services.Migrations
 
             modelBuilder.Entity("RestoraNow.Services.Entities.MenuItem", b =>
                 {
-                    b.Navigation("Image");
-
                     b.Navigation("OrderItems");
 
                     b.Navigation("Reviews");

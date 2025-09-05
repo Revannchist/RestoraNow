@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:restoranow_mobile/providers/menu_item_review_provider.dart';
 import 'package:restoranow_mobile/screens/addresses_screen.dart';
 import 'package:restoranow_mobile/screens/menu_screen.dart';
 
@@ -59,6 +60,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AddressProvider()),
         ChangeNotifierProvider(create: (_) => RestaurantProvider()),
         ChangeNotifierProvider(create: (_) => RestaurantReviewProvider()),
+        ChangeNotifierProvider(create: (_) => MenuItemReviewProvider()),
       ],
       child: MaterialApp(
         title: 'RestoraNow Mobile',

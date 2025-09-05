@@ -130,19 +130,43 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
     switch (current) {
       case ReservationStatus.pending:
         return const [
-          _ResAction(ReservationStatus.confirmed, 'Confirm', Icons.check_circle_outline),
-          _ResAction(ReservationStatus.cancelled, 'Cancel', Icons.cancel_outlined),
+          _ResAction(
+            ReservationStatus.confirmed,
+            'Confirm',
+            Icons.check_circle_outline,
+          ),
+          _ResAction(
+            ReservationStatus.cancelled,
+            'Cancel',
+            Icons.cancel_outlined,
+          ),
         ];
       case ReservationStatus.confirmed:
         return const [
-          _ResAction(ReservationStatus.completed, 'Complete', Icons.flag_circle_outlined),
-          _ResAction(ReservationStatus.noShow, 'No-show', Icons.report_outlined),
-          _ResAction(ReservationStatus.cancelled, 'Cancel', Icons.cancel_outlined),
+          _ResAction(
+            ReservationStatus.completed,
+            'Complete',
+            Icons.flag_circle_outlined,
+          ),
+          _ResAction(
+            ReservationStatus.noShow,
+            'No-show',
+            Icons.report_outlined,
+          ),
+          _ResAction(
+            ReservationStatus.cancelled,
+            'Cancel',
+            Icons.cancel_outlined,
+          ),
         ];
       case ReservationStatus.completed:
         // Often terminal; include Cancel if your backend allows it. Remove if not.
         return const [
-          _ResAction(ReservationStatus.cancelled, 'Cancel', Icons.cancel_outlined),
+          _ResAction(
+            ReservationStatus.cancelled,
+            'Cancel',
+            Icons.cancel_outlined,
+          ),
         ];
       case ReservationStatus.cancelled:
       case ReservationStatus.noShow:
@@ -150,7 +174,10 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
     }
   }
 
-  Future<void> _changeStatusInline(ReservationModel r, ReservationStatus target) async {
+  Future<void> _changeStatusInline(
+    ReservationModel r,
+    ReservationStatus target,
+  ) async {
     if (_busyReservations.contains(r.id)) return;
     setState(() => _busyReservations.add(r.id));
     try {
@@ -181,7 +208,10 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
       msg.showAnyErrorOnTop(context, e);
     } catch (_) {
       if (!mounted) return;
-      msg.showOverlayMessage(context, 'Something went wrong. Please try again.');
+      msg.showOverlayMessage(
+        context,
+        'Something went wrong. Please try again.',
+      );
     } finally {
       if (mounted) setState(() => _busyReservations.remove(r.id));
     }
@@ -227,12 +257,16 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                 children: [
                   // Add button
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Align(
                       alignment: Alignment.centerRight,
-                      child: ElevatedButton(
+                      child: ElevatedButton.icon(
                         onPressed: () => showCreateReservationDialog(context),
-                        child: const Text('Add Reservation'),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Reservation'),
                       ),
                     ),
                   ),
@@ -253,7 +287,9 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                             itemBuilder: (context, u) => ListTile(
                               dense: true,
                               title: Text(helpers.displayUser(u)),
-                              subtitle: u.email.isNotEmpty ? Text(u.email) : null,
+                              subtitle: u.email.isNotEmpty
+                                  ? Text(u.email)
+                                  : null,
                               trailing: Text('ID: ${u.id}'),
                             ),
                             onSelected: (u) {
@@ -285,10 +321,13 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                                 ),
                                 onChanged: (_) {
                                   _selectedUserId = null;
-                                  if (_userError != null) setState(() => _userError = null);
+                                  if (_userError != null)
+                                    setState(() => _userError = null);
                                 },
                                 onSubmitted: (_) {
-                                  _selectedUserId = int.tryParse(_userCtrl.text.trim());
+                                  _selectedUserId = int.tryParse(
+                                    _userCtrl.text.trim(),
+                                  );
                                   _applyFilters();
                                 },
                               );
@@ -304,7 +343,9 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                             controller: _tableIdController,
                             focusNode: _tableIdFocus,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Table number'),
+                            decoration: const InputDecoration(
+                              labelText: 'Table number',
+                            ),
                             onSubmitted: (_) => _applyFilters(),
                           ),
                         ),
@@ -319,11 +360,26 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                           },
                           items: const [
                             DropdownMenuItem(value: null, child: Text('All')),
-                            DropdownMenuItem(value: ReservationStatus.pending, child: Text('Pending')),
-                            DropdownMenuItem(value: ReservationStatus.confirmed, child: Text('Confirmed')),
-                            DropdownMenuItem(value: ReservationStatus.cancelled, child: Text('Cancelled')),
-                            DropdownMenuItem(value: ReservationStatus.completed, child: Text('Completed')),
-                            DropdownMenuItem(value: ReservationStatus.noShow, child: Text('NoShow')),
+                            DropdownMenuItem(
+                              value: ReservationStatus.pending,
+                              child: Text('Pending'),
+                            ),
+                            DropdownMenuItem(
+                              value: ReservationStatus.confirmed,
+                              child: Text('Confirmed'),
+                            ),
+                            DropdownMenuItem(
+                              value: ReservationStatus.cancelled,
+                              child: Text('Cancelled'),
+                            ),
+                            DropdownMenuItem(
+                              value: ReservationStatus.completed,
+                              child: Text('Completed'),
+                            ),
+                            DropdownMenuItem(
+                              value: ReservationStatus.noShow,
+                              child: Text('NoShow'),
+                            ),
                           ],
                         ),
 
@@ -331,15 +387,24 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                         OutlinedButton.icon(
                           onPressed: _pickFromDate,
                           icon: const Icon(Icons.date_range),
-                          label: Text(_fromDate == null ? 'From date' : _fmtDate(_fromDate!)),
+                          label: Text(
+                            _fromDate == null
+                                ? 'From date'
+                                : _fmtDate(_fromDate!),
+                          ),
                         ),
                         OutlinedButton.icon(
                           onPressed: _pickToDate,
                           icon: const Icon(Icons.date_range),
-                          label: Text(_toDate == null ? 'To date' : _fmtDate(_toDate!)),
+                          label: Text(
+                            _toDate == null ? 'To date' : _fmtDate(_toDate!),
+                          ),
                         ),
 
-                        TextButton(onPressed: _resetFilters, child: const Text('Reset')),
+                        TextButton(
+                          onPressed: _resetFilters,
+                          child: const Text('Reset'),
+                        ),
                       ],
                     ),
                   ),
@@ -353,140 +418,217 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                       child: isFirst
                           ? const Center(child: CircularProgressIndicator())
                           : (provider.items.isEmpty
-                              ? const Center(child: Text('No reservations found'))
-                              : ListView.builder(
-                                  key: ValueKey(provider.items.length),
-                                  itemCount: provider.items.length,
-                                  itemBuilder: (context, index) {
-                                    final r = provider.items[index];
-                                    final actions = _actionsFor(r.status);
-                                    final busy = _busyReservations.contains(r.id);
+                                ? const Center(
+                                    child: Text('No reservations found'),
+                                  )
+                                : ListView.builder(
+                                    key: ValueKey(provider.items.length),
+                                    itemCount: provider.items.length,
+                                    itemBuilder: (context, index) {
+                                      final r = provider.items[index];
+                                      final actions = _actionsFor(r.status);
+                                      final busy = _busyReservations.contains(
+                                        r.id,
+                                      );
 
-                                    return Container(
-                                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).cardColor,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: Theme.of(context).dividerColor),
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.center,
-                                        children: [
-                                          // User / Table
-                                          Expanded(
-                                            flex: 2,
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  r.userName ?? 'User #${r.userId}',
-                                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  r.tableNumber != null ? 'Table ${r.tableNumber}' : 'Table #${r.tableId}',
-                                                  style: const TextStyle(fontSize: 14),
-                                                ),
-                                              ],
-                                            ),
+                                      return Container(
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 4,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).cardColor,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
                                           ),
-                                          // Date / Time
-                                          Expanded(
-                                            child: Row(
-                                              children: [
-                                                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                                                const SizedBox(width: 4),
-                                                Flexible(
-                                                  child: Text(
-                                                    '${_fmtDate(r.reservationDate)} ${r.reservationTime}',
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                          border: Border.all(
+                                            color: Theme.of(
+                                              context,
+                                            ).dividerColor,
                                           ),
-                                          // Guests
-                                          Expanded(
-                                            child: Row(
-                                              children: [
-                                                const Icon(Icons.group, size: 16, color: Colors.grey),
-                                                const SizedBox(width: 4),
-                                                Text('${r.guestCount}'),
-                                              ],
-                                            ),
-                                          ),
-                                          // Status
-                                          Expanded(
-                                            child: Align(
-                                              alignment: Alignment.centerLeft,
-                                              child: _statusChip(r.status),
-                                            ),
-                                          ),
-                                          // Actions: Change status (left), Edit (middle), Delete (rightmost)
-                                          SizedBox(
-                                            width: 160,
-                                            child: Align(
-                                              alignment: Alignment.centerRight,
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            // User / Table
+                                            Expanded(
+                                              flex: 2,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
-                                                  // 1) Change status
-                                                  if (busy)
-                                                    const SizedBox(
-                                                      width: 22,
-                                                      height: 22,
-                                                      child: Padding(
-                                                        padding: EdgeInsets.all(2),
-                                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                                      ),
-                                                    )
-                                                  else if (actions.isNotEmpty)
-                                                    PopupMenuButton<_ResAction>(
-                                                      tooltip: 'Change status',
-                                                      icon: const Icon(Icons.sync_alt, size: 18),
-                                                      itemBuilder: (ctx) => actions
-                                                          .map(
-                                                            (a) => PopupMenuItem<_ResAction>(
-                                                              value: a,
-                                                              child: Row(
-                                                                children: [
-                                                                  Icon(a.icon, size: 18),
-                                                                  const SizedBox(width: 8),
-                                                                  Text(a.label),
-                                                                ],
-                                                              ),
-                                                            ),
-                                                          )
-                                                          .toList(),
-                                                      onSelected: (a) => _changeStatusInline(r, a.target),
+                                                  Text(
+                                                    r.userName ??
+                                                        'User #${r.userId}',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                     ),
-
-                                                  const SizedBox(width: 4),
-
-                                                  // 2) Edit
-                                                  IconButton(
-                                                    icon: const Icon(Icons.edit, size: 18),
-                                                    onPressed: () => showUpdateReservationDialog(context, r),
                                                   ),
-
-                                                  const SizedBox(width: 4),
-
-                                                  // 3) Delete
-                                                  IconButton(
-                                                    icon: const Icon(Icons.delete, size: 18),
-                                                    color: Colors.red,
-                                                    onPressed: () => _confirmDelete(context, r.id),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    r.tableNumber != null
+                                                        ? 'Table ${r.tableNumber}'
+                                                        : 'Table #${r.tableId}',
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                    ),
                                                   ),
                                                 ],
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                )),
+                                            // Date / Time
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.calendar_today,
+                                                    size: 16,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Flexible(
+                                                    child: Text(
+                                                      '${_fmtDate(r.reservationDate)} ${r.reservationTime}',
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Guests
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.group,
+                                                    size: 16,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text('${r.guestCount}'),
+                                                ],
+                                              ),
+                                            ),
+                                            // Status
+                                            Expanded(
+                                              child: Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: _statusChip(r.status),
+                                              ),
+                                            ),
+                                            // Actions: Change status (left), Edit (middle), Delete (rightmost)
+                                            SizedBox(
+                                              width: 160,
+                                              child: Align(
+                                                alignment:
+                                                    Alignment.centerRight,
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    // 1) Change status
+                                                    if (busy)
+                                                      const SizedBox(
+                                                        width: 22,
+                                                        height: 22,
+                                                        child: Padding(
+                                                          padding:
+                                                              EdgeInsets.all(2),
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                strokeWidth: 2,
+                                                              ),
+                                                        ),
+                                                      )
+                                                    else if (actions.isNotEmpty)
+                                                      PopupMenuButton<
+                                                        _ResAction
+                                                      >(
+                                                        tooltip:
+                                                            'Change status',
+                                                        icon: const Icon(
+                                                          Icons.sync_alt,
+                                                          size: 18,
+                                                        ),
+                                                        itemBuilder: (ctx) => actions
+                                                            .map(
+                                                              (a) =>
+                                                                  PopupMenuItem<
+                                                                    _ResAction
+                                                                  >(
+                                                                    value: a,
+                                                                    child: Row(
+                                                                      children: [
+                                                                        Icon(
+                                                                          a.icon,
+                                                                          size:
+                                                                              18,
+                                                                        ),
+                                                                        const SizedBox(
+                                                                          width:
+                                                                              8,
+                                                                        ),
+                                                                        Text(
+                                                                          a.label,
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  ),
+                                                            )
+                                                            .toList(),
+                                                        onSelected: (a) =>
+                                                            _changeStatusInline(
+                                                              r,
+                                                              a.target,
+                                                            ),
+                                                      ),
+
+                                                    const SizedBox(width: 4),
+
+                                                    // 2) Edit
+                                                    IconButton(
+                                                      icon: const Icon(
+                                                        Icons.edit,
+                                                        size: 18,
+                                                      ),
+                                                      onPressed: () =>
+                                                          showUpdateReservationDialog(
+                                                            context,
+                                                            r,
+                                                          ),
+                                                    ),
+
+                                                    const SizedBox(width: 4),
+
+                                                    // 3) Delete
+                                                    IconButton(
+                                                      icon: const Icon(
+                                                        Icons.delete,
+                                                        size: 18,
+                                                      ),
+                                                      color: Colors.red,
+                                                      onPressed: () =>
+                                                          _confirmDelete(
+                                                            context,
+                                                            r.id,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  )),
                     ),
                   ),
 
@@ -496,7 +638,8 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
                     totalPages: provider.totalPages,
                     pageSize: provider.pageSize,
                     onPageChange: (page) => provider.setPage(page),
-                    onPageSizeChange: (newSize) => provider.setPageSize(newSize),
+                    onPageSizeChange: (newSize) =>
+                        provider.setPageSize(newSize),
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -568,16 +711,25 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
       useRootNavigator: true,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Delete'),
-        content: const Text('Are you sure you want to delete this reservation?'),
+        content: const Text(
+          'Are you sure you want to delete this reservation?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
               try {
                 await context.read<ReservationProvider>().deleteItem(id);
                 if (!mounted) return;
                 Navigator.pop(context);
-                msg.showOverlayMessage(context, 'Reservation deleted', type: msg.AppMessageType.success);
+                msg.showOverlayMessage(
+                  context,
+                  'Reservation deleted',
+                  type: msg.AppMessageType.success,
+                );
               } on ApiException catch (e) {
                 if (!mounted) return;
                 Navigator.pop(context);
@@ -585,7 +737,10 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
               } catch (_) {
                 if (!mounted) return;
                 Navigator.pop(context);
-                msg.showOverlayMessage(context, 'Something went wrong. Please try again.');
+                msg.showOverlayMessage(
+                  context,
+                  'Something went wrong. Please try again.',
+                );
               }
             },
             child: const Text('Delete'),

@@ -7,9 +7,11 @@ import '../providers/cart_provider.dart';
 import '../providers/base/auth_provider.dart';
 import '../providers/reservation_provider.dart';
 import '../providers/address_provider.dart';
+import '../providers/menu_item_review_provider.dart'; // reviews
 import '../models/reservation_model.dart';
 import '../models/address_model.dart';
 import '../models/menu_item_model.dart';
+import '../models/menu_item_review_model.dart'; // reviews
 import '../screens/checkout_screen.dart';
 import '../screens/addresses_screen.dart';
 
@@ -202,12 +204,11 @@ class _CartSheetState extends State<_CartSheet> {
               r.status == ReservationStatus.confirmed;
           final when = _combine(r.reservationDate, r.reservationTime);
           return allowed && when.isAfter(now);
-        }).toList()
-          ..sort((a, b) {
-            final adt = _combine(a.reservationDate, a.reservationTime);
-            final bdt = _combine(b.reservationDate, b.reservationTime);
-            return adt.compareTo(bdt);
-          });
+        }).toList()..sort((a, b) {
+          final adt = _combine(a.reservationDate, a.reservationTime);
+          final bdt = _combine(b.reservationDate, b.reservationTime);
+          return adt.compareTo(bdt);
+        });
 
     // Keep selection valid
     if (_mode == _TargetOption.reservation &&
@@ -287,8 +288,8 @@ class _CartSheetState extends State<_CartSheet> {
             subtitle: (resProv.isLoading && eligible.isEmpty)
                 ? const Text('Loading your reservations…')
                 : (eligible.isEmpty
-                    ? const Text('No eligible reservations found.')
-                    : null),
+                      ? const Text('No eligible reservations found.')
+                      : null),
             onChanged: (v) => setState(() {
               _mode = v!;
               if (eligible.length == 1) {
@@ -360,9 +361,7 @@ class _CartSheetState extends State<_CartSheet> {
               child: ListView(
                 children: cart.items.values.map((ci) {
                   final item = ci.item;
-                  final raw = item.imageUrls.isNotEmpty
-                      ? item.imageUrls.first
-                      : null;
+                  final raw = item.imageUrl; // <-- single image
 
                   return ListTile(
                     leading: _thumbFromRaw(raw),
@@ -627,7 +626,8 @@ class _ItemQuickView extends StatelessWidget {
           // drag handle
           const SizedBox(height: 8),
           Container(
-            height: 4, width: 44,
+            height: 4,
+            width: 44,
             decoration: BoxDecoration(
               color: Colors.grey[400],
               borderRadius: BorderRadius.circular(12),
@@ -644,7 +644,7 @@ class _ItemQuickView extends StatelessWidget {
                   // Image
                   AspectRatio(
                     aspectRatio: 16 / 9,
-                    child: _QuickImage(raw: item.imageUrls.isNotEmpty ? item.imageUrls.first : null),
+                    child: _QuickImage(raw: item.imageUrl), // <-- single image
                   ),
                   const SizedBox(height: 12),
 
@@ -655,13 +655,17 @@ class _ItemQuickView extends StatelessWidget {
                       Expanded(
                         child: Text(
                           item.name,
-                          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         '${item.price.toStringAsFixed(2)} KM',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -685,14 +689,23 @@ class _ItemQuickView extends StatelessWidget {
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
                           backgroundColor: Colors.orange.withOpacity(0.12),
-                          side: BorderSide(color: Colors.orange.withOpacity(0.3)),
-                          labelStyle: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+                          side: BorderSide(
+                            color: Colors.orange.withOpacity(0.3),
+                          ),
+                          labelStyle: const TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       Chip(
-                        label: Text(item.isAvailable ? 'Available' : 'Unavailable'),
+                        label: Text(
+                          item.isAvailable ? 'Available' : 'Unavailable',
+                        ),
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
-                        backgroundColor: (item.isAvailable ? Colors.green : Colors.red).withOpacity(0.1),
+                        backgroundColor:
+                            (item.isAvailable ? Colors.green : Colors.red)
+                                .withOpacity(0.1),
                       ),
                     ],
                   ),
@@ -706,12 +719,20 @@ class _ItemQuickView extends StatelessWidget {
                     ),
                   ],
 
+                  const SizedBox(height: 12),
+
+                  // ✅ Reviews section
+                  _ReviewSection(item: item),
+
                   const SizedBox(height: 16),
 
                   // Qty stepper
                   Row(
                     children: [
-                      const Text('Quantity', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Quantity',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       const Spacer(),
                       _QtyStepperInline(item: item, qty: qty),
                     ],
@@ -773,7 +794,9 @@ class _QtyStepperInline extends StatelessWidget {
         IconButton(
           tooltip: 'Decrease',
           icon: const Icon(Icons.remove_circle_outline),
-          onPressed: qty > 0 ? () => context.read<CartProvider>().removeOne(item.id) : null,
+          onPressed: qty > 0
+              ? () => context.read<CartProvider>().removeOne(item.id)
+              : null,
         ),
         Text('$qty', style: const TextStyle(fontWeight: FontWeight.w600)),
         IconButton(
@@ -795,10 +818,17 @@ class _QuickImage extends StatelessWidget {
     if (raw == null || raw!.isEmpty) return const _QuickFallback();
     if (raw!.startsWith('data:image/')) {
       try {
-        final cleaned = raw!.replaceAll(RegExp(r'data:image/[^;]+;base64,'), '');
+        final cleaned = raw!.replaceAll(
+          RegExp(r'data:image/[^;]+;base64,'),
+          '',
+        );
         final bytes = base64Decode(cleaned);
         if (bytes.isEmpty) return const _QuickFallback();
-        return Image.memory(bytes, fit: BoxFit.cover, filterQuality: FilterQuality.medium);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.medium,
+        );
       } catch (_) {
         return const _QuickFallback();
       }
@@ -808,8 +838,9 @@ class _QuickImage extends StatelessWidget {
       url,
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => const _QuickFallback(),
-      loadingBuilder: (c, w, p) =>
-          p == null ? w : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      loadingBuilder: (c, w, p) => p == null
+          ? w
+          : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
       filterQuality: FilterQuality.medium,
     );
   }
@@ -821,7 +852,444 @@ class _QuickFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.grey[200],
-      child: const Center(child: Icon(Icons.fastfood, size: 28, color: Colors.grey)),
+      child: const Center(
+        child: Icon(Icons.fastfood, size: 28, color: Colors.grey),
+      ),
+    );
+  }
+}
+
+/// =======================
+/// Reviews UI (Quick View)
+/// =======================
+class _ReviewSection extends StatefulWidget {
+  const _ReviewSection({required this.item});
+  final MenuItemModel item;
+
+  @override
+  State<_ReviewSection> createState() => _ReviewSectionState();
+}
+
+class _ReviewSectionState extends State<_ReviewSection> {
+  int? _rating; // 1..5
+  final _commentCtrl = TextEditingController();
+  bool _saving = false;
+  bool _hydratedFromExisting = false; // prefill once
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MenuItemReviewProvider>().fetchForMenuItem(
+        widget.item.id,
+        pageSize: 10,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _commentCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prov = context.watch<MenuItemReviewProvider>();
+    final meId = context.read<AuthProvider>().userId;
+
+    final avg = prov.averageFor(widget.item.id);
+    final total = prov.totalFor(widget.item.id);
+    final existing = (meId == null)
+        ? null
+        : prov.myReviewFor(menuItemId: widget.item.id, userId: meId);
+
+    if (!_hydratedFromExisting && existing != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _rating ??= existing.rating;
+        _commentCtrl.text = existing.comment ?? '';
+        _hydratedFromExisting = true;
+        setState(() {});
+      });
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header: average + count
+        Row(
+          children: [
+            _StarDisplay(value: (avg ?? 0).round()),
+            const SizedBox(width: 8),
+            Text(
+              avg == null
+                  ? 'No ratings yet'
+                  : '${avg.toStringAsFixed(1)} • $total review${(total == 1) ? '' : 's'}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        if (meId == null) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blueGrey.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blueGrey.withOpacity(0.2)),
+            ),
+            child: const Text('Sign in to rate this meal.'),
+          ),
+        ] else ...[
+          Row(
+            children: [
+              const Text(
+                'Your rating:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 8),
+              _StarPicker(
+                value: _rating ?? existing?.rating ?? 0,
+                onChanged: (v) => setState(() => _rating = v),
+              ),
+              if (existing != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Saved',
+                      style: TextStyle(color: Colors.green),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          TextField(
+            controller: _commentCtrl,
+            maxLines: 3,
+            maxLength: 1000,
+            decoration: const InputDecoration(
+              labelText: 'Comment (optional)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send),
+                  label: Text(
+                    existing == null ? 'Submit review' : 'Update review',
+                  ),
+                  onPressed: _saving
+                      ? null
+                      : () async {
+                          if (_rating == null && existing == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please select a rating (1–5).'),
+                              ),
+                            );
+                            return;
+                          }
+                          final ratingToSend = _rating ?? existing!.rating;
+                          if (ratingToSend < 1 || ratingToSend > 5) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Rating must be between 1 and 5.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          setState(() => _saving = true);
+                          try {
+                            final req = MenuItemReviewRequest(
+                              userId: meId,
+                              menuItemId: widget.item.id,
+                              rating: ratingToSend,
+                              comment: _commentCtrl.text.trim().isEmpty
+                                  ? null
+                                  : _commentCtrl.text.trim(),
+                            );
+
+                            if (existing == null) {
+                              await context
+                                  .read<MenuItemReviewProvider>()
+                                  .create(req);
+                            } else {
+                              await context
+                                  .read<MenuItemReviewProvider>()
+                                  .update(existing.id, req);
+                            }
+
+                            // Refetch to sync with server + update "other reviews" and card stars
+                            await context
+                                .read<MenuItemReviewProvider>()
+                                .fetchForMenuItem(widget.item.id, pageSize: 10);
+
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Thanks for your review!'),
+                              ),
+                            );
+                            FocusScope.of(context).unfocus();
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to save review: $e'),
+                              ),
+                            );
+                          } finally {
+                            if (mounted) setState(() => _saving = false);
+                          }
+                        },
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (existing != null)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Delete'),
+                    onPressed: _saving
+                        ? null
+                        : () async {
+                            setState(() => _saving = true);
+                            try {
+                              await context
+                                  .read<MenuItemReviewProvider>()
+                                  .delete(existing.id, widget.item.id);
+
+                              // Refetch to sync with server + update "other reviews" and card stars
+                              await context
+                                  .read<MenuItemReviewProvider>()
+                                  .fetchForMenuItem(
+                                    widget.item.id,
+                                    pageSize: 10,
+                                  );
+
+                              if (!mounted) return;
+                              setState(() {
+                                _rating = 0;
+                                _commentCtrl.clear();
+                                _hydratedFromExisting = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Review deleted.'),
+                                ),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to delete: $e')),
+                              );
+                            } finally {
+                              if (mounted) setState(() => _saving = false);
+                            }
+                          },
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+          _OtherReviews(menuItemId: widget.item.id, maxItems: 5),
+        ],
+      ],
+    );
+  }
+}
+
+/// Displays filled stars (non-interactive)
+class _StarDisplay extends StatelessWidget {
+  const _StarDisplay({required this.value});
+  final int value; // 0..5
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (i) {
+        return Icon(
+          i < value ? Icons.star : Icons.star_border,
+          size: 20,
+          color: Colors.amber[700],
+        );
+      }),
+    );
+  }
+}
+
+/// Interactive star picker (1..5)
+class _StarPicker extends StatelessWidget {
+  const _StarPicker({required this.value, required this.onChanged});
+  final int value; // 0..5 (0 = none selected yet)
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(5, (i) {
+        final idx = i + 1;
+        final filled = idx <= value;
+        return IconButton(
+          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          icon: Icon(
+            filled ? Icons.star : Icons.star_border,
+            color: Colors.amber[700],
+          ),
+          onPressed: () => onChanged(idx),
+          tooltip: '$idx',
+        );
+      }),
+    );
+  }
+}
+
+class _OtherReviews extends StatelessWidget {
+  const _OtherReviews({required this.menuItemId, this.maxItems = 5});
+  final int menuItemId;
+  final int maxItems;
+
+  @override
+  Widget build(BuildContext context) {
+    final prov = context.watch<MenuItemReviewProvider>();
+    final meId = context.read<AuthProvider>().userId;
+    final isLoading = prov.isLoading(menuItemId);
+    final all = prov.reviewsFor(menuItemId);
+
+    // Exclude my own review from the "other reviews" list
+    final others = (meId == null)
+        ? all
+        : all.where((r) => r.userId != meId).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Recent reviews',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            if (isLoading) ...[
+              const SizedBox(width: 8),
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (others.isEmpty && !isLoading)
+          Text('No reviews yet.', style: Theme.of(context).textTheme.bodySmall),
+        if (others.isNotEmpty)
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: others.length > maxItems ? maxItems : others.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (_, i) {
+              final r = others[i];
+              return _ReviewTile(review: r);
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _ReviewTile extends StatelessWidget {
+  const _ReviewTile({required this.review});
+  final MenuItemReviewModel review;
+
+  @override
+  Widget build(BuildContext context) {
+    final created = review.createdAt;
+    final dateStr =
+        '${created.year}-${created.month.toString().padLeft(2, '0')}-${created.day.toString().padLeft(2, '0')}';
+    final name = (review.userName?.trim().isNotEmpty == true)
+        ? review.userName!
+        : (review.userEmail ?? 'User ${review.userId}');
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.withOpacity(0.15)),
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // header
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(5, (i) {
+                  return Icon(
+                    i < review.rating ? Icons.star : Icons.star_border,
+                    size: 16,
+                    color: Colors.amber[700],
+                  );
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            dateStr,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+          if ((review.comment ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(review.comment!.trim()),
+          ],
+        ],
+      ),
     );
   }
 }

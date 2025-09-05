@@ -1,4 +1,3 @@
-// lib/screens/profile/user_profile_screen.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -13,7 +12,7 @@ import '../../models/user_model.dart';
 import '../../providers/base/auth_provider.dart';
 import '../../providers/user_image_provider.dart';
 import '../../providers/user_provider.dart';
-import '../../theme/theme.dart'; // <-- AppTheme
+import '../../theme/theme.dart'; 
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -27,7 +26,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _busy = false;
 
   // Image state
-  String? _pendingImageDataUrl; // newly picked image (data URL)
+  String? _pendingImageDataUrl;
   bool _imageMarkedForDeletion = false;
 
   @override

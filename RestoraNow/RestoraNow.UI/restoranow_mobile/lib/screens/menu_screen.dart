@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
+import '../../layouts/main_layout.dart';
 import '../../providers/menu_item_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/menu_item_review_provider.dart';
 import '../../models/menu_item_model.dart';
 import '../../widgets/menu_dialogs.dart'; // showCartSheet + showMenuItemQuickView
 
@@ -28,57 +30,63 @@ class _MenuScreenState extends State<MenuScreen> {
     });
   }
 
+  Future<void> _refresh() async {
+    await context.read<MenuItemProvider>().fetchItems(onlyAvailable: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final menu = context.watch<MenuItemProvider>();
     final cart = context.watch<CartProvider>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Menu'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              Navigator.pushReplacementNamed(context, '/home');
-            }
-          },
+    return MainLayout(
+      title: 'Menu',
+      cartReservationId: widget.reservationId, // pass through to AppBar cart
+      actions: [
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: _refresh,
+          icon: const Icon(Icons.refresh),
         ),
-      ),
-      body: Stack(
+      ],
+      child: Stack(
         children: [
           if (menu.isLoading)
             const Center(child: CircularProgressIndicator())
           else if (menu.error != null)
             Center(child: Text(menu.error!))
           else
-            ListView(
-              padding: const EdgeInsets.only(bottom: 96, top: 8),
-              children: [
-                // ===== Specials (Meal of the Day) =====
-                _SpecialsRow(
-                  items: menu.items.where((m) => m.isSpecialOfTheDay).toList(),
-                ),
+            RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 96, top: 8),
+                children: [
+                  // ===== Specials (Meal of the Day) =====
+                  _SpecialsRow(
+                    items: menu.items
+                        .where((m) => m.isSpecialOfTheDay)
+                        .toList(),
+                  ),
 
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                // ===== Category filter bar =====
-                _CategoryFilterBar(
-                  items: menu.items,
-                  selectedCategory: _selectedCategory,
-                  onSelected: (cat) => setState(() => _selectedCategory = cat),
-                ),
+                  // ===== Category filter bar =====
+                  _CategoryFilterBar(
+                    items: menu.items,
+                    selectedCategory: _selectedCategory,
+                    onSelected: (cat) =>
+                        setState(() => _selectedCategory = cat),
+                  ),
 
-                const SizedBox(height: 4),
+                  const SizedBox(height: 4),
 
-                // ===== Category sections (filtered if a chip is selected) =====
-                _CategoryList(
-                  items: menu.items,
-                  filterCategory: _selectedCategory,
-                ),
-              ],
+                  // ===== Category sections (filtered if a chip is selected) =====
+                  _CategoryList(
+                    items: menu.items,
+                    filterCategory: _selectedCategory,
+                  ),
+                ],
+              ),
             ),
 
           // Sticky cart button
@@ -90,9 +98,9 @@ class _MenuScreenState extends State<MenuScreen> {
               onPressed: cart.totalQty == 0
                   ? null
                   : () => showCartSheet(
-                        context,
-                        reservationId: widget.reservationId,
-                      ),
+                      context,
+                      reservationId: widget.reservationId,
+                    ),
               child: Text(
                 cart.totalQty == 0
                     ? 'Cart is empty'
@@ -296,25 +304,21 @@ class _MenuItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cart = context.read<CartProvider>(); // read (no rebuild from qty)
-
+    final cart = context.read<CartProvider>();
     return Card(
       elevation: 1,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        // Open QUICK VIEW popup (always), add/remove inside the popup or via stepper
+        // Open QUICK VIEW popup (always)
         onTap: () => showMenuItemQuickView(context, item),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Image (does NOT listen to cart changes)
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: _MenuItemImage(item: item),
-            ),
+            // Image
+            Expanded(child: _MenuItemImage(item: item)),
 
-            // Title (static)
+            // Title
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
               child: Text(
@@ -325,7 +329,12 @@ class _MenuItemCard extends StatelessWidget {
               ),
             ),
 
-            // Price + qty controls (ONLY this part rebuilds on qty changes)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 2, 10, 0),
+              child: _ItemRatingLine(item: item),
+            ),
+
+            // Price + qty controls
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
               child: Row(
@@ -378,7 +387,7 @@ class _MenuItemImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final raw = (item.imageUrls.isNotEmpty) ? item.imageUrls.first : null;
+    final raw = item.imageUrl; // <-- single image
     if (raw == null || raw.isEmpty) return const _ImageFallback();
 
     if (raw.startsWith('data:image/')) {
@@ -416,7 +425,9 @@ String _absoluteFromEnvLocal(String raw) {
   if (raw.isEmpty || raw.startsWith('data:image/')) return raw;
 
   Uri? parsed;
-  try { parsed = Uri.parse(raw); } catch (_) {}
+  try {
+    parsed = Uri.parse(raw);
+  } catch (_) {}
 
   if (parsed != null && parsed.hasScheme) {
     if (parsed.host == 'localhost' || parsed.host == '127.0.0.1') {
@@ -503,6 +514,48 @@ class _ImageFallback extends StatelessWidget {
       child: const Center(
         child: Icon(Icons.fastfood, size: 28, color: Colors.grey),
       ),
+    );
+  }
+}
+
+// ---------- Live rating line (uses provider, falls back to item fields) ----------
+class _RatingVM {
+  final double? avg;
+  final int total;
+  const _RatingVM(this.avg, this.total);
+}
+
+class _ItemRatingLine extends StatelessWidget {
+  const _ItemRatingLine({required this.item});
+  final MenuItemModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<MenuItemReviewProvider, _RatingVM>(
+      selector: (_, p) => _RatingVM(p.averageFor(item.id), p.totalFor(item.id)),
+      builder: (ctx, vm, _) {
+        double? avg = vm.avg ?? item.averageRating;
+        int total = (vm.avg != null || vm.total > 0)
+            ? vm.total
+            : item.ratingsCount;
+
+        if (avg == null || total <= 0) return const SizedBox.shrink();
+
+        return Row(
+          children: [
+            Icon(Icons.star, size: 14, color: Colors.amber[700]),
+            const SizedBox(width: 4),
+            Text(
+              '${avg.toStringAsFixed(1)} ($total)',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.black54,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

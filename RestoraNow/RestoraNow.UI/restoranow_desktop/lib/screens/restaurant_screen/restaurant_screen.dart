@@ -122,9 +122,10 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () => tbl.showCreateTableDialog(context),
-                  child: const Text('Add Table'),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Table'),
                 ),
               ],
             ),

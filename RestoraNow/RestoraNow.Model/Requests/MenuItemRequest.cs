@@ -6,7 +6,7 @@ namespace RestoraNow.Model.Requests
     public class MenuItemRequest
     {
         [Required]
-        [MaxLength(20)]
+        [MaxLength(100)]
         public string Name { get; set; }
 
         public string? Description { get; set; }

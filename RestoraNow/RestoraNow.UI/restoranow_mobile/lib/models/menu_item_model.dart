@@ -7,7 +7,11 @@ class MenuItemModel {
   final bool isSpecialOfTheDay;
   final int categoryId;
   final String? categoryName;
-  final List<String> imageUrls;
+
+  final double? averageRating; // null if no reviews
+  final int ratingsCount; // 0 if none
+
+  final String? imageUrl;
 
   MenuItemModel({
     required this.id,
@@ -18,10 +22,23 @@ class MenuItemModel {
     this.isSpecialOfTheDay = false,
     required this.categoryId,
     this.categoryName,
-    this.imageUrls = const [],
+    this.averageRating,
+    this.ratingsCount = 0,
+    this.imageUrl, // NEW
   });
 
   factory MenuItemModel.fromJson(Map<String, dynamic> json) {
+    String? resolveImageUrl(Map<String, dynamic> j) {
+      final single = j['imageUrl'] as String?;
+      if (single != null && single.isNotEmpty) return single;
+      final list = j['imageUrls'] as List?;
+      if (list != null && list.isNotEmpty && list.first is String && (list.first as String).isNotEmpty) {
+        return list.first as String;
+      }
+      return null;
+    }
+
+    final avg = json['averageRating'];
     return MenuItemModel(
       id: json['id'],
       name: json['name'],
@@ -31,33 +48,47 @@ class MenuItemModel {
       isSpecialOfTheDay: json['isSpecialOfTheDay'] ?? false,
       categoryId: json['categoryId'],
       categoryName: json['categoryName'],
-      imageUrls: List<String>.from(json['imageUrls'] ?? []),
+      averageRating: (avg == null) ? null : (avg as num).toDouble(),
+      ratingsCount: (json['ratingsCount'] ?? 0) as int,
+      imageUrl: resolveImageUrl(json), // NEW
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'description': description,
-      'price': price,
-      'isAvailable': isAvailable,
-      'isSpecialOfTheDay': isSpecialOfTheDay,
-      'categoryId': categoryId,
-      'categoryName': categoryName,
-      'imageUrls': imageUrls,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'price': price,
+    'isAvailable': isAvailable,
+    'isSpecialOfTheDay': isSpecialOfTheDay,
+    'categoryId': categoryId,
+    'categoryName': categoryName,
+    'averageRating': averageRating,
+    'ratingsCount': ratingsCount,
+    'imageUrl': imageUrl, // harmless in UI-only usage
+  };
 
-  // For Create/Update requests (omit `id`, `categoryName`, `imageUrls`)
-  Map<String, dynamic> toRequestJson() {
-    return {
-      'name': name,
-      'description': description,
-      'price': price,
-      'isAvailable': isAvailable,
-      'isSpecialOfTheDay': isSpecialOfTheDay,
-      'categoryId': categoryId,
-    };
-  }
+  Map<String, dynamic> toRequestJson() => {
+    'name': name,
+    'description': description,
+    'price': price,
+    'isAvailable': isAvailable,
+    'isSpecialOfTheDay': isSpecialOfTheDay,
+    'categoryId': categoryId,
+  };
+
+  // handy for instant UI refresh after upload
+  MenuItemModel withImage(String url) => MenuItemModel(
+    id: id,
+    name: name,
+    description: description,
+    price: price,
+    isAvailable: isAvailable,
+    isSpecialOfTheDay: isSpecialOfTheDay,
+    categoryId: categoryId,
+    categoryName: categoryName,
+    averageRating: averageRating,
+    ratingsCount: ratingsCount,
+    imageUrl: url,
+  );
 }

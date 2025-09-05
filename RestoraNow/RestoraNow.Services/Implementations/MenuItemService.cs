@@ -37,7 +37,8 @@ namespace RestoraNow.Services.Implementations
         {
             return query
                 .Include(x => x.Category)
-                .Include(x => x.Images);
+                .Include(x => x.Image)   
+                .Include(x => x.Reviews);
         }
 
         public override async Task<MenuItemResponse> InsertAsync(MenuItemRequest request)
@@ -78,7 +79,8 @@ namespace RestoraNow.Services.Implementations
         {
             var entity = await _context.MenuItem
                 .Include(x => x.Category)
-                .Include(x => x.Images)
+                .Include(x => x.Image)     
+                .Include(x => x.Reviews)  
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (entity == null)

@@ -14,7 +14,18 @@ namespace RestoraNow.Services.Mappings
             // MenuItem -> MenuItemResponse
             TypeAdapterConfig<MenuItem, MenuItemResponse>.NewConfig()
                 .Map(d => d.CategoryName, s => s.Category != null ? s.Category.Name : null)
-                .Map(d => d.ImageUrls, s => s.Images != null ? s.Images.Select(img => img.Url).ToList() : new());
+                .Map(d => d.ImageUrl, s => s.Image != null ? s.Image.Url : null)
+                .Map(d => d.AverageRating, s => s.Reviews.Any() ? s.Reviews.Average(r => r.Rating) : (double?)null)
+                .Map(d => d.RatingsCount, s => s.Reviews.Count);
+
+
+            // ----- MenuItemReview -> MenuItemReviewResponse -----
+            TypeAdapterConfig<MenuItemReview, MenuItemReviewResponse>.NewConfig()
+                .Map(d => d.UserName,
+                     s => s.User != null ? (s.User.FirstName + " " + s.User.LastName).Trim() : "Unknown User")
+                .Map(d => d.UserEmail, s => s.User != null ? s.User.Email : null)
+                .Map(d => d.MenuItemName, s => s.MenuItem != null ? s.MenuItem.Name : null)
+                .IgnoreNullValues(true);
 
             // Review -> ReviewResponse
             TypeAdapterConfig<Review, ReviewResponse>.NewConfig()

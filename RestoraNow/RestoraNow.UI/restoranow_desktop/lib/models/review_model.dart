@@ -2,7 +2,7 @@ class ReviewModel {
   final int id;
   final int userId;
   final String? userName;
-  final String? userEmail; // <-- add this
+  final String? userEmail;
   final int restaurantId;
   final String? restaurantName;
   final int rating;
@@ -40,7 +40,7 @@ class ReviewModel {
       'id': id,
       'userId': userId,
       'userName': userName,
-      'userEmail': userEmail, // <-- add this
+      'userEmail': userEmail,
       'restaurantId': restaurantId,
       'restaurantName': restaurantName,
       'rating': rating,

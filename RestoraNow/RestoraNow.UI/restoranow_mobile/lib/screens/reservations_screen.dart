@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:restoranow_mobile/screens/menu_screen.dart';
 
+import '../layouts/main_layout.dart'; // ✅ use shared layout (hamburger app bar)
 import '../providers/reservation_provider.dart';
 import '../providers/user_provider.dart';
 import '../models/reservation_model.dart';
@@ -54,13 +55,11 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       // If user chose "Save + Menu", open menu for that reservation
       final rid = result.openMenuForReservationId;
       if (rid != null) {
-        // Navigate to your Menu screen, passing reservationId
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => MenuScreen(reservationId: rid)),
         );
       } else {
-        // Normal flow: maybe refresh list
         await _refresh();
       }
     }
@@ -97,6 +96,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
           content: Text(ok ? 'Reservation canceled' : 'Failed to cancel'),
         ),
       );
+      if (ok) _refresh();
     }
   }
 
@@ -142,55 +142,43 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 
     // filter list
     final now = DateTime.now();
-    List<ReservationModel> filtered = prov.reservations.where((r) {
+    final filtered = prov.reservations.where((r) {
       final dt = combineDateAndTime(r.reservationDate, r.reservationTime);
       final isPast =
           dt.isBefore(now) ||
           r.status == ReservationStatus.cancelled ||
           r.status == ReservationStatus.completed ||
           r.status == ReservationStatus.noShow;
-
       return _showPast ? isPast : !isPast;
     }).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              // fallback if opened as a top-level destination
-              Navigator.pushReplacementNamed(context, '/home');
-            }
-          },
+    return MainLayout(
+      title: 'My Reservations',
+      actions: [
+        TextButton.icon(
+          onPressed: _openFilterSheet,
+          icon: const Icon(Icons.filter_list),
+          label: Text(_showPast ? 'History' : 'Upcoming'),
         ),
-        title: const Text('My Reservations'),
-        actions: [
-          TextButton.icon(
-            onPressed: _openFilterSheet,
-            icon: const Icon(Icons.filter_list),
-            label: Text(_showPast ? 'History' : 'Upcoming'),
-          ),
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _refresh,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : prov.error != null
-          ? ReservationsErrorView(
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: _refresh,
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+      child: Stack(
+        children: [
+          if (isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (prov.error != null)
+            ReservationsErrorView(
               error: prov.error!,
               onRetry: () async {
                 if (me != null) await prov.fetchMyReservations(me.id);
               },
             )
-          : filtered.isEmpty
-          ? EmptyReservationsView(
+          else if (filtered.isEmpty)
+            EmptyReservationsView(
               onCreate: () => _openReservationDialog(),
               label: _showPast
                   ? 'No past reservations'
@@ -199,7 +187,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                   ? 'Switch to Upcoming to see future reservations.'
                   : 'Tap New to create one.',
             )
-          : RefreshIndicator(
+          else
+            RefreshIndicator(
               onRefresh: _refresh,
               child: ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -222,10 +211,20 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                 },
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openReservationDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('New'),
+
+          // FAB (kept locally since MainLayout doesn't expose a FAB slot)
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: FloatingActionButton.extended(
+                onPressed: () => _openReservationDialog(),
+                icon: const Icon(Icons.add),
+                label: const Text('New'),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

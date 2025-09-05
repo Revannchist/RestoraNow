@@ -11,8 +11,11 @@ namespace RestoraNow.Model.Responses
         public bool IsAvailable { get; set; }
         public bool IsSpecialOfTheDay { get; set; }
         public int CategoryId { get; set; }
-        public string CategoryName { get; set; }
+        public string? CategoryName { get; set; }
+        public string? ImageUrl { get; set; } 
 
-        public List<string> ImageUrls { get; set; } = new List<string>();
+        // handy aggregates to show stars/count
+        public double? AverageRating { get; set; }
+        public int RatingsCount { get; set; }
     }
 }

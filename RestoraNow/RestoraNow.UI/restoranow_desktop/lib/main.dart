@@ -9,6 +9,7 @@ import 'package:restoranow_desktop/providers/review_provider.dart';
 import 'package:restoranow_desktop/providers/table_provider.dart';
 import 'package:restoranow_desktop/providers/order_provider.dart';
 import 'package:restoranow_desktop/providers/analytics_provider.dart';
+import 'package:restoranow_desktop/providers/menu_item_review_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'layouts/main_layout.dart';
@@ -54,6 +55,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ReservationProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
+        ChangeNotifierProvider(create:  (_) => MenuItemReviewProvider()),
       ],
       child: MaterialApp(
         title: 'RestoraNow Admin',

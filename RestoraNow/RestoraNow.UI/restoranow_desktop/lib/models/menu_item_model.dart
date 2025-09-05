@@ -7,7 +7,9 @@ class MenuItemModel {
   final bool isSpecialOfTheDay;
   final int categoryId;
   final String? categoryName;
-  final List<String> imageUrls;
+
+  final double? averageRating; // null if no reviews
+  final int ratingsCount; // 0 if none
 
   MenuItemModel({
     required this.id,
@@ -18,10 +20,12 @@ class MenuItemModel {
     this.isSpecialOfTheDay = false,
     required this.categoryId,
     this.categoryName,
-    this.imageUrls = const [],
+    this.averageRating,
+    this.ratingsCount = 0,
   });
 
   factory MenuItemModel.fromJson(Map<String, dynamic> json) {
+    final avg = json['averageRating'];
     return MenuItemModel(
       id: json['id'],
       name: json['name'],
@@ -31,33 +35,30 @@ class MenuItemModel {
       isSpecialOfTheDay: json['isSpecialOfTheDay'] ?? false,
       categoryId: json['categoryId'],
       categoryName: json['categoryName'],
-      imageUrls: List<String>.from(json['imageUrls'] ?? []),
+      averageRating: (avg == null) ? null : (avg as num).toDouble(),
+      ratingsCount: (json['ratingsCount'] ?? 0) as int,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'description': description,
-      'price': price,
-      'isAvailable': isAvailable,
-      'isSpecialOfTheDay': isSpecialOfTheDay,
-      'categoryId': categoryId,
-      'categoryName': categoryName,
-      'imageUrls': imageUrls,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'price': price,
+    'isAvailable': isAvailable,
+    'isSpecialOfTheDay': isSpecialOfTheDay,
+    'categoryId': categoryId,
+    'categoryName': categoryName,
+    'averageRating': averageRating,
+    'ratingsCount': ratingsCount,
+  };
 
-  // For Create/Update requests (omit `id`, `categoryName`, `imageUrls`)
-  Map<String, dynamic> toRequestJson() {
-    return {
-      'name': name,
-      'description': description,
-      'price': price,
-      'isAvailable': isAvailable,
-      'isSpecialOfTheDay': isSpecialOfTheDay,
-      'categoryId': categoryId,
-    };
-  }
+  Map<String, dynamic> toRequestJson() => {
+    'name': name,
+    'description': description,
+    'price': price,
+    'isAvailable': isAvailable,
+    'isSpecialOfTheDay': isSpecialOfTheDay,
+    'categoryId': categoryId,
+  };
 }

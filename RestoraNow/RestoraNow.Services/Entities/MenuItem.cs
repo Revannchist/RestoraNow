@@ -1,5 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RestoraNow.Services.Entities
 {
@@ -8,29 +8,29 @@ namespace RestoraNow.Services.Entities
         [Key]
         public int Id { get; set; }
 
-        [Required]
-        [MaxLength(100)]
+        [Required, MaxLength(100)]
         public string Name { get; set; }
 
         [MaxLength(500)]
         public string? Description { get; set; }
 
-        [Required]
-        [Column(TypeName = "decimal(10,2)")]
+        [Required, Column(TypeName = "decimal(10,2)")]
         public decimal Price { get; set; }
 
         public bool IsAvailable { get; set; } = true;
-
         public bool IsSpecialOfTheDay { get; set; } = false;
 
         [Required]
         public int CategoryId { get; set; }
 
-        [ForeignKey("CategoryId")]
+        [ForeignKey(nameof(CategoryId))]
         public virtual MenuCategory Category { get; set; }
 
-        public ICollection<MenuItemImage> Images { get; set; } = new List<MenuItemImage>();
+        public virtual MenuItemImage? Image { get; set; }
 
-        public ICollection<OrderItem> OrderItems { get; set; }
+        public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+
+        // multiple reviews; one per user enforced via unique index in DB
+        public virtual ICollection<MenuItemReview> Reviews { get; set; } = new List<MenuItemReview>();
     }
 }

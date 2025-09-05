@@ -18,11 +18,12 @@ class MenuItemProvider with ChangeNotifier {
     _loading = true;
     _error = null;
     notifyListeners();
+
     try {
       final SearchResult<MenuItemModel> res = await _api.get(
         filter: onlyAvailable ? {'IsAvailable': true} : null,
         page: 1,
-        pageSize: 100, // adjust
+        pageSize: 100, // adjust as needed
       );
       _items = res.items;
       _loading = false;
@@ -32,5 +33,28 @@ class MenuItemProvider with ChangeNotifier {
       _error = e.toString();
       notifyListeners();
     }
+  }
+
+  /// Update the single image URL for a given menu item (or clear with null).
+  /// Call this after successful upload/replace/delete so UI updates instantly.
+  void updateItemImage(int itemId, String? url) {
+    final i = _items.indexWhere((x) => x.id == itemId);
+    if (i == -1) return;
+
+    final m = _items[i];
+    _items[i] = MenuItemModel(
+      id: m.id,
+      name: m.name,
+      description: m.description,
+      price: m.price,
+      isAvailable: m.isAvailable,
+      isSpecialOfTheDay: m.isSpecialOfTheDay,
+      categoryId: m.categoryId,
+      categoryName: m.categoryName,
+      averageRating: m.averageRating,
+      ratingsCount: m.ratingsCount,
+      imageUrl: url, // <- set/clear single image
+    );
+    notifyListeners();
   }
 }

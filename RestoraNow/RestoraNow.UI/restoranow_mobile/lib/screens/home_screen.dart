@@ -46,7 +46,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final meId = context.read<AuthProvider>().userId;
     final res = await _menuApi.get(
       filter: {
-        // If your API supports per-user recommendations, it can use this:
         if (meId != null) 'UserId': '$meId',
         'Recommended': 'true',
         'IsAvailable': 'true',
@@ -263,7 +262,7 @@ class _MenuCard extends StatelessWidget {
                 Expanded(
                   child: _MenuImageSmart(
                     menuItemId: item.id,
-                    urls: item.imageUrls,
+                    imageUrl: item.imageUrl, // <- single image
                   ),
                 ),
                 Padding(
@@ -332,14 +331,14 @@ class _MenuCard extends StatelessWidget {
   }
 }
 
-/// Smart image:
-/// 1) Uses provided imageUrls if present (data URI or http/relative)
-/// 2) Else fetches the first image via MenuItemImageApiService
-/// 3) Network URLs are resolved against API_URL from .env
+/// Smart image (single-image version):
+/// 1) Uses provided imageUrl if present (data URI or http/relative/absolute).
+/// 2) Else fetches the first image via MenuItemImageApiService (cached per item).
+/// 3) Network URLs are resolved against API_URL from .env for localhost fixups.
 class _MenuImageSmart extends StatefulWidget {
   final int menuItemId;
-  final List<String> urls;
-  const _MenuImageSmart({required this.menuItemId, required this.urls});
+  final String? imageUrl;
+  const _MenuImageSmart({required this.menuItemId, required this.imageUrl});
 
   @override
   State<_MenuImageSmart> createState() => _MenuImageSmartState();
@@ -347,9 +346,14 @@ class _MenuImageSmart extends StatefulWidget {
 
 class _MenuImageSmartState extends State<_MenuImageSmart> {
   static final _memBase64Cache = <String, Uint8List>{};
-  static final _firstImageCache = <int, Uint8List?>{};
+  static final _firstUrlCache = <int, String?>{}; // caches fetched URL
+  static final _firstBytesCache =
+      <int, Uint8List?>{}; // caches decoded bytes for data URIs
+
   final _imgApi = MenuItemImageApiService();
-  Uint8List? _bytes;
+
+  String? _resolvedUrl; // final URL (from widget.imageUrl or fetched)
+  Uint8List? _bytes; // decoded bytes if data URI
 
   @override
   void initState() {
@@ -361,28 +365,38 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
   void didUpdateWidget(covariant _MenuImageSmart oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.menuItemId != widget.menuItemId ||
-        oldWidget.urls != widget.urls) {
+        oldWidget.imageUrl != widget.imageUrl) {
+      _resolvedUrl = null;
       _bytes = null;
       _resolve();
     }
   }
 
   Future<void> _resolve() async {
-    // Prefer direct urls if provided
-    if (widget.urls.isNotEmpty) {
-      final raw = widget.urls.first;
+    // 1) If provided by the item (preferred)
+    if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
+      final raw = widget.imageUrl!;
+      _resolvedUrl = raw;
       if (raw.startsWith('data:image/')) {
-        setState(() => _bytes = _decodeDataUri(raw));
-        return;
+        _bytes = _decodeDataUri(raw);
       } else {
-        setState(() => _bytes = null); // will use network path in build
-        return;
+        _bytes = null; // use network in build
       }
+      if (mounted) setState(() {});
+      return;
     }
 
-    // Otherwise try one-time fetch for first image
-    if (_firstImageCache.containsKey(widget.menuItemId)) {
-      setState(() => _bytes = _firstImageCache[widget.menuItemId]);
+    // 2) Otherwise: use per-item cache or fetch once
+    if (_firstUrlCache.containsKey(widget.menuItemId)) {
+      _resolvedUrl = _firstUrlCache[widget.menuItemId];
+      _bytes = _resolvedUrl != null && _resolvedUrl!.startsWith('data:image/')
+          ? (_firstBytesCache[widget.menuItemId] ??
+                _decodeDataUri(_resolvedUrl!))
+          : null;
+      if (_resolvedUrl != null && _resolvedUrl!.startsWith('data:image/')) {
+        _firstBytesCache[widget.menuItemId] = _bytes;
+      }
+      if (mounted) setState(() {});
       return;
     }
 
@@ -394,15 +408,21 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
       );
       if (result.items.isNotEmpty) {
         final url = result.items.first.url;
-        final bytes = url.startsWith('data:image/')
-            ? _decodeDataUri(url)
-            : null;
-        _firstImageCache[widget.menuItemId] = bytes;
-        if (mounted) setState(() => _bytes = bytes);
+        _firstUrlCache[widget.menuItemId] = url;
+        _resolvedUrl = url;
+
+        if (url.startsWith('data:image/')) {
+          _bytes = _decodeDataUri(url);
+          _firstBytesCache[widget.menuItemId] = _bytes;
+        } else {
+          _bytes = null;
+        }
       } else {
-        _firstImageCache[widget.menuItemId] = null;
-        if (mounted) setState(() => _bytes = null);
+        _firstUrlCache[widget.menuItemId] = null;
+        _resolvedUrl = null;
+        _bytes = null;
       }
+      if (mounted) setState(() {});
     } catch (_) {
       // ignore; show fallback
     }
@@ -423,6 +443,7 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
 
   @override
   Widget build(BuildContext context) {
+    // Data URI rendered from memory
     if (_bytes != null) {
       return Image.memory(
         _bytes!,
@@ -432,12 +453,12 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
       );
     }
 
-    // If urls had a URL (absolute or relative), resolve against .env base
-    if (widget.urls.isNotEmpty &&
-        !widget.urls.first.startsWith('data:image/')) {
-      final url = _absoluteFromEnv(widget.urls.first);
+    // Network/relative URL
+    final url = _resolvedUrl;
+    if (url != null && url.isNotEmpty && !url.startsWith('data:image/')) {
+      final abs = _absoluteFromEnv(url);
       return Image.network(
-        url,
+        abs,
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (_, __, ___) => const _ImageFallback(),
@@ -448,6 +469,7 @@ class _MenuImageSmartState extends State<_MenuImageSmart> {
       );
     }
 
+    // Fallback
     return const _ImageFallback();
   }
 }

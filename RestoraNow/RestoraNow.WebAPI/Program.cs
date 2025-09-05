@@ -34,6 +34,7 @@ namespace RestoraNow.WebAPI
             builder.Services.AddScoped<IReservationService, ReservationService>();
             builder.Services.AddScoped<IRestaurantService, RestaurantService>();
             builder.Services.AddScoped<IReviewService, ReviewService>();
+            builder.Services.AddScoped<IMenuItemReviewService, MenuItemReviewService>();
             builder.Services.AddScoped<ITableService, TableService>();
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IUserImageService, UserImageService>();

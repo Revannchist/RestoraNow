@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../layouts/main_layout.dart'; // ✅ use shared layout (hamburger app bar)
 import '../../providers/order_list_provider.dart';
 import '../../providers/base/auth_provider.dart';
 import '../../models/order_models.dart';
@@ -41,29 +42,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ? listProv.currentOrders
         : listProv.pastOrders;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Orders'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              Navigator.pushReplacementNamed(context, '/home');
-            }
-          },
+    return MainLayout(
+      title: 'My Orders',
+      actions: [
+        IconButton(
+          tooltip: 'Refresh',
+          icon: const Icon(Icons.refresh),
+          onPressed: _refresh,
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: _refresh,
-          ),
-        ],
-      ),
-      body: Column(
+      ],
+      child: Column(
         children: [
+          // Filter chips
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: Row(
@@ -84,6 +74,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ),
           ),
           const Divider(height: 1),
+
+          // List content
           Expanded(
             child: listProv.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -94,6 +86,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     child: orders.isEmpty
                         ? ListView(
                             children: [
+                              const SizedBox(height: 24),
                               Padding(
                                 padding: const EdgeInsets.all(24),
                                 child: Text(

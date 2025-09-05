@@ -1,4 +1,3 @@
-// widgets/menu_item_dialogs.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -9,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/menu_item_model.dart';
-import '../models/menu_item_image_model.dart';
 import '../providers/menu_item_provider.dart';
 import '../providers/menu_item_image_provider.dart';
 import '../providers/menu_category_provider.dart';
@@ -185,7 +183,7 @@ void showCreateMenuItemDialog(BuildContext context) {
                   ? () async {
                       if (!_formKey.currentState!.validate()) return;
 
-                      final item = MenuItemModel(
+                      final created = MenuItemModel(
                         id: 0,
                         name: nameController.text.trim(),
                         description: descController.text.trim(),
@@ -197,10 +195,11 @@ void showCreateMenuItemDialog(BuildContext context) {
                         categoryName: categoryProvider
                             .getById(int.tryParse(selectedCategory ?? '') ?? 0)
                             ?.name,
-                        imageUrls: [],
                       );
 
-                      await context.read<MenuItemProvider>().createItem(item);
+                      await context.read<MenuItemProvider>().createItem(
+                        created,
+                      );
                       await context.read<MenuItemProvider>().fetchItems();
 
                       if (context.mounted) Navigator.pop(context);
@@ -234,10 +233,11 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
   String? selectedCategory = item.categoryId.toString();
   bool isFormValid = true;
 
+  // Current first image (if any)
   final existingImages = imageProvider.getImagesForMenuItem(item.id);
-  List<MenuItemImageModel> imagesToKeep = List.from(existingImages);
+  final hasExisting = existingImages.isNotEmpty;
   bool removeExistingImage = false;
-  String? newImageUrl;
+  String? newImageDataUrl; // picked replacement
 
   void updateFormValidity(StateSetter setState) {
     final nameValid =
@@ -342,24 +342,32 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
                   ),
                   const SizedBox(height: 12),
 
-                  /// IMAGE HANDLING
-                  if (imagesToKeep.isNotEmpty && !removeExistingImage)
+                  /// IMAGE HANDLING (single image per item)
+                  if (hasExisting && !removeExistingImage)
                     Column(
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(4),
-                          child: Image.memory(
-                            _decodeBase64Image(imagesToKeep.first.url),
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
+                          child: Builder(
+                            builder: (_) {
+                              final bytes = imageProvider.getFirstImageBytes(
+                                item.id,
+                              );
+                              if (bytes == null) return const SizedBox.shrink();
+                              return Image.memory(
+                                bytes,
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                              );
+                            },
                           ),
                         ),
                         TextButton.icon(
                           onPressed: () {
                             setState(() {
                               removeExistingImage = true;
-                              newImageUrl = null;
+                              newImageDataUrl = null;
                             });
                           },
                           icon: const Icon(Icons.delete),
@@ -370,14 +378,15 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
                         ),
                       ],
                     ),
-                  if (removeExistingImage || imagesToKeep.isEmpty)
+                  if (removeExistingImage || !hasExisting)
                     Column(
                       children: [
-                        if (newImageUrl != null)
+                        if (newImageDataUrl != null)
                           Image.memory(
-                            _decodeBase64Image(newImageUrl!),
+                            _decodeBase64Image(newImageDataUrl!),
                             width: 80,
                             height: 80,
+                            fit: BoxFit.cover,
                           ),
                         ElevatedButton.icon(
                           onPressed: () async {
@@ -391,7 +400,7 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
                               final base64 = base64Encode(bytes);
                               final mimeType = _getMimeType(file.path);
                               final dataUrl = 'data:$mimeType;base64,$base64';
-                              setState(() => newImageUrl = dataUrl);
+                              setState(() => newImageDataUrl = dataUrl);
                             }
                           },
                           icon: const Icon(Icons.add_a_photo),
@@ -429,28 +438,24 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
                               )
                               ?.name ??
                           item.categoryName,
-                      imageUrls: [],
                     );
 
                     await context.read<MenuItemProvider>().updateItem(updated);
 
-                    if (removeExistingImage && imagesToKeep.isNotEmpty) {
-                      await imageProvider.deleteImage(
-                        imagesToKeep.first.id,
-                        item.id,
+                    // Image changes
+                    if (removeExistingImage) {
+                      await imageProvider.deleteAllForMenuItem(item.id);
+                    }
+                    if (newImageDataUrl != null) {
+                      await imageProvider.replaceWithDataUrl(
+                        menuItemId: item.id,
+                        dataUrl: newImageDataUrl!,
+                        description: 'Updated image',
                       );
                     }
 
-                    if (newImageUrl != null) {
-                      await imageProvider.uploadImage(
-                        MenuItemImageModel(
-                          id: 0,
-                          menuItemId: item.id,
-                          url: newImageUrl!,
-                          description: 'Updated image',
-                        ),
-                      );
-                    }
+                    // Refresh list after image ops (to update projections if any)
+                    await context.read<MenuItemProvider>().fetchItems();
 
                     if (context.mounted) Navigator.pop(context);
                   }
@@ -463,9 +468,10 @@ void showUpdateMenuItemDialog(BuildContext context, MenuItemModel item) {
   );
 }
 
-Uint8List _decodeBase64Image(String base64String) {
-  final regex = RegExp(r'data:image/[^;]+;base64,');
-  final cleaned = base64String.replaceAll(regex, '');
+Uint8List _decodeBase64Image(String base64DataUrl) {
+  final cleaned = base64DataUrl
+      .replaceAll(RegExp(r'^data:image/[^;]+;base64,'), '')
+      .replaceAll(RegExp(r'\s'), '');
   return base64Decode(cleaned);
 }
 

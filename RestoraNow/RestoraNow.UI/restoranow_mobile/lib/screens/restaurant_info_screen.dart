@@ -5,6 +5,7 @@ import '../providers/restaurant_provider.dart';
 import '../providers/restaurant_review_provider.dart';
 import '../providers/base/auth_provider.dart';
 import '../widgets/restaurant_info_widgets.dart';
+import '../layouts/main_layout.dart';
 
 class RestaurantInfoScreen extends StatefulWidget {
   const RestaurantInfoScreen({super.key});
@@ -75,28 +76,16 @@ class _RestaurantInfoScreenState extends State<RestaurantInfoScreen> {
     final restaurant = restaurantProv.restaurant;
     final isLoading = restaurantProv.isLoading && !_initialized;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              Navigator.pushReplacementNamed(context, '/home');
-            }
-          },
+    return MainLayout(
+      title: 'Restaurant',
+      actions: [
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: _refresh,
+          icon: const Icon(Icons.refresh),
         ),
-        title: const Text('Restaurant'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _refresh,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: isLoading
+      ],
+      child: isLoading
           ? const Center(child: CircularProgressIndicator())
           : restaurantProv.error != null && restaurant == null
           ? ErrorView(message: restaurantProv.error!, onRetry: _refresh)

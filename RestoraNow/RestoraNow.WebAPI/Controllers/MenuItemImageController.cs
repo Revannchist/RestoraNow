@@ -6,15 +6,12 @@ using RestoraNow.WebAPI.Controllers.Base;
 
 namespace RestoraNow.WebAPI.Controllers
 {
-    namespace RestoraNow.WebAPI.Controllers
+    public class MenuItemImageController
+        : BaseCRUDController<MenuItemImageResponse, MenuItemImageSearchModel, MenuItemImageRequest, MenuItemImageRequest>
     {
-        public class MenuItemImageController
-            : BaseCRUDController<MenuItemImageResponse, MenuItemImageSearchModel, MenuItemImageRequest, MenuItemImageRequest>
+        public MenuItemImageController(IMenuItemImageService service)
+            : base(service)
         {
-            public MenuItemImageController(IMenuItemImageService service)
-                : base(service)
-            {
-            }
         }
     }
 }

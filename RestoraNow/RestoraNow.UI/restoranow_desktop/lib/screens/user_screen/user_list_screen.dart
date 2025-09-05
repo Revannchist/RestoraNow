@@ -86,9 +86,10 @@ class _UserListScreenState extends State<UserListScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Align(
               alignment: Alignment.centerRight,
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
                 onPressed: () => showCreateUserDialog(context),
-                child: const Text('Add User'),
+                icon: const Icon(Icons.add),
+                label: const Text('Add User'),
               ),
             ),
           ),

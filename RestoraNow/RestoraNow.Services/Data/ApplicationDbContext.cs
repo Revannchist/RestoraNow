@@ -14,6 +14,7 @@ namespace RestoraNow.Services.Data
         public DbSet<Reservation> Reservations { get; set; }
         public DbSet<Restaurant> Restaurants { get; set; }
         public DbSet<MenuItem> MenuItem { get; set; }
+        public DbSet<MenuItemReview> MenuItemReview { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<MenuCategory> Categories { get; set; }
         public DbSet<Order> Orders { get; set; }
@@ -28,24 +29,24 @@ namespace RestoraNow.Services.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Customize table names
+            // Identity tables
             modelBuilder.Entity<User>().ToTable("AppUsers");
             modelBuilder.Entity<IdentityRole<int>>().ToTable("AppRoles");
             modelBuilder.Entity<IdentityUserRole<int>>().ToTable("AppUserRoles");
 
-            // Configure Address relationship
+            // Address: user can have many addresses, only one default
             modelBuilder.Entity<Address>()
                 .HasOne(a => a.User)
                 .WithMany(u => u.Addresses)
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            //User can only have 1 default address
             modelBuilder.Entity<Address>()
                 .HasIndex(a => new { a.UserId, a.IsDefault })
                 .HasFilter("[IsDefault] = 1")
                 .IsUnique();
 
+            // Orders / Payments
             modelBuilder.Entity<Order>()
                 .HasOne(o => o.Payment)
                 .WithOne(p => p.Order)
@@ -66,18 +67,41 @@ namespace RestoraNow.Services.Data
                 .WithMany(mi => mi.OrderItems)
                 .HasForeignKey(oi => oi.MenuItemId);
 
-            //-------------
-            /*
-            modelBuilder.Entity<User>()
-                .HasOne(u => u.Image)
-                .WithOne(i => i.User)
-                .HasForeignKey<UserImage>(i => i.UserId)
+            // ===== MenuItemReview (one review per user per menu item) =====
+            modelBuilder.Entity<MenuItemReview>()
+                .HasIndex(x => new { x.UserId, x.MenuItemId })
+                .IsUnique();
+
+            modelBuilder.Entity<MenuItemReview>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<UserImage>()
-                .HasIndex(i => i.UserId)
+            modelBuilder.Entity<MenuItemReview>()
+                .HasOne(r => r.MenuItem)
+                .WithMany(mi => mi.Reviews)
+                .HasForeignKey(r => r.MenuItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ===== MenuItemImage (one image per MenuItem) =====
+            modelBuilder.Entity<MenuItemImage>()
+                .HasIndex(i => i.MenuItemId)
                 .IsUnique();
-            */
+
+            modelBuilder.Entity<MenuItem>()
+                .HasOne(m => m.Image)
+                .WithOne(i => i.MenuItem)
+                .HasForeignKey<MenuItemImage>(i => i.MenuItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            // ===== (Optional) Restaurant Review uniqueness =====
+            // modelBuilder.Entity<Review>()
+            //     .HasIndex(x => new { x.UserId, x.RestaurantId })
+            //     .IsUnique();
         }
+
+
     }
 }
