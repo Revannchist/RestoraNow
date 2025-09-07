@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace RestoraNow.Model.Responses
+namespace RestoraNow.Model.Responses.Payments
 {
     public class PaymentResponse
     {
@@ -12,6 +12,6 @@ namespace RestoraNow.Model.Responses
         public decimal Amount { get; set; }
         public PaymentMethod Method { get; set; }
         public PaymentStatus Status { get; set; }
-        public DateTime PaidAt { get; set; }
+        public DateTime? PaidAt { get; set; }
     }
 }

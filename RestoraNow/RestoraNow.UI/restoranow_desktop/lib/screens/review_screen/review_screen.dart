@@ -112,6 +112,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       ),
                     ),
 
+                    /*
                     // User Id
                     SizedBox(
                       width: 160,
@@ -143,6 +144,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         onSubmitted: (_) => _applyFilters(),
                       ),
                     ),
+                    */
 
                     TextButton(onPressed: _resetFilters, child: const Text('Reset')),
                   ],

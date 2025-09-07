@@ -5,6 +5,11 @@ using RestoraNow.Model.Responses.Analytics;
 using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Interfaces;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using System.Globalization;
+
 
 namespace RestoraNow.Services.Implementations
 {
@@ -86,58 +91,65 @@ namespace RestoraNow.Services.Implementations
         public async Task<IEnumerable<RevenueByPeriodResponse>> GetRevenueByPeriodAsync(AnalyticsSearchModel s)
         {
             Normalize(s);
-            var fromDate = s.From!.Value;
-            var toDate = s.To!.Value;
+            var from = s.From!.Value;
+            var to = s.To!.Value;
 
-            var paid = _db.Orders.AsNoTracking()
-                .Where(o => o.Status == OrderStatus.Completed
-                            && o.CreatedAt >= fromDate
-                            && o.CreatedAt <= toDate)
-                .Select(o => new { o.CreatedAt, o.Id });
+            // 1) Base: per-order revenue + CreatedAt (single grouping, easy to translate)
+            var baseQ =
+                _db.OrderItems.AsNoTracking()
+                   .Where(oi => oi.Order.Status == OrderStatus.Completed
+                                && oi.Order.CreatedAt >= from
+                                && oi.Order.CreatedAt <= to)
+                   .GroupBy(oi => new { oi.OrderId, oi.Order.CreatedAt })
+                   .Select(g => new
+                   {
+                       g.Key.CreatedAt,
+                       Revenue = g.Sum(x => x.UnitPrice * x.Quantity)
+                   });
 
-            var orderRevenues = _db.OrderItems.AsNoTracking()
-                .Where(oi => oi.Order.Status == OrderStatus.Completed
-                             && oi.Order.CreatedAt >= fromDate
-                             && oi.Order.CreatedAt <= toDate)
-                .GroupBy(oi => oi.OrderId)
-                .Select(g => new { OrderId = g.Key, Revenue = g.Sum(x => x.UnitPrice * x.Quantity) });
-
-            var joined = from o in paid
-                         join rev in orderRevenues on o.Id equals rev.OrderId
-                         select new { o.CreatedAt, rev.Revenue };
-
+            // 2) Grouping
             if (s.GroupBy == "month")
             {
-                return await joined
-                    .GroupBy(x => new { x.CreatedAt.Year, x.CreatedAt.Month })
-                    .Select(g => new RevenueByPeriodResponse
-                    {
-                        Period = new DateTime(g.Key.Year, g.Key.Month, 1),
-                        Revenue = g.Sum(x => (decimal)x.Revenue)
-                    })
-                    .OrderBy(x => x.Period)
+                // Group on month index in SQL, then convert to Period client-side
+                var monthRows = await baseQ
+                    .GroupBy(x => EF.Functions.DateDiffMonth(DateTime.UnixEpoch, x.CreatedAt))
+                    .Select(g => new { MonthIndex = g.Key, Revenue = g.Sum(x => x.Revenue) })
+                    .OrderBy(x => x.MonthIndex)
                     .ToListAsync();
+
+                return monthRows.Select(x =>
+                {
+                    var dt = DateTime.UnixEpoch.AddMonths(x.MonthIndex);
+                    return new RevenueByPeriodResponse
+                    {
+                        Period = new DateTime(dt.Year, dt.Month, 1),
+                        Revenue = x.Revenue
+                    };
+                });
             }
 
             if (s.GroupBy == "week")
             {
-                return await joined
+                var weekRows = await baseQ
                     .GroupBy(x => EF.Functions.DateDiffWeek(DateTime.UnixEpoch, x.CreatedAt))
-                    .Select(g => new RevenueByPeriodResponse
-                    {
-                        Period = DateTime.UnixEpoch.AddDays(g.Key * 7),
-                        Revenue = g.Sum(x => (decimal)x.Revenue)
-                    })
-                    .OrderBy(x => x.Period)
+                    .Select(g => new { WeekIndex = g.Key, Revenue = g.Sum(x => x.Revenue) })
+                    .OrderBy(x => x.WeekIndex)
                     .ToListAsync();
+
+                return weekRows.Select(x => new RevenueByPeriodResponse
+                {
+                    Period = DateTime.UnixEpoch.AddDays(x.WeekIndex * 7),
+                    Revenue = x.Revenue
+                });
             }
 
-            return await joined
+            // default: day
+            return await baseQ
                 .GroupBy(x => x.CreatedAt.Date)
                 .Select(g => new RevenueByPeriodResponse
                 {
                     Period = g.Key,
-                    Revenue = g.Sum(x => (decimal)x.Revenue)
+                    Revenue = g.Sum(x => x.Revenue)
                 })
                 .OrderBy(x => x.Period)
                 .ToListAsync();
@@ -195,5 +207,157 @@ namespace RestoraNow.Services.Implementations
                 .Take(take)
                 .ToListAsync();
         }
+
+        public async Task<byte[]> GenerateReportPdfAsync(AnalyticsSearchModel s)
+        {
+            Normalize(s);
+
+            var summary = await GetSummaryAsync(s);
+            var byPeriod = (await GetRevenueByPeriodAsync(s)).OrderBy(x => x.Period).ToList();
+            var byCat = (await GetRevenueByCategoryAsync(s)).OrderByDescending(x => x.Revenue).ToList();
+            var top = (await GetTopProductsAsync(s)).ToList();
+
+            var culture = CultureInfo.CurrentCulture;
+
+            var doc = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(32);
+                    page.DefaultTextStyle(x => x.FontSize(11));
+
+                    // Header
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Text("RestoraNow – Analytics Report").SemiBold().FontSize(16);
+                        col.Item().Text($"Period: {s.From:yyyy-MM-dd} → {s.To:yyyy-MM-dd}");
+                        col.Item().Text($"Generated: {DateTime.Now:g}");
+                    });
+
+                    // Content
+                    page.Content().Column(col =>
+                    {
+                        // SUMMARY
+                        col.Item().PaddingBottom(4).Text("Summary").Bold().FontSize(13);
+                        col.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(c =>
+                            {
+                                c.RelativeColumn();
+                                c.ConstantColumn(160);
+                            });
+
+                            t.Header(h =>
+                            {
+                                h.Cell().PaddingVertical(4).Text("Metric").SemiBold();
+                                h.Cell().PaddingVertical(4).AlignRight().Text("Value").SemiBold();
+                            });
+
+                            void Row(string k, string v)
+                            {
+                                t.Cell().PaddingVertical(2).Text(k);
+                                t.Cell().PaddingVertical(2).AlignRight().Text(v);
+                            }
+
+                            Row("Total revenue", summary.TotalRevenue.ToString("C", culture));
+                            Row("Reservations", summary.Reservations.ToString(culture));
+                            Row("Average rating", summary.AvgRating.ToString("0.00", culture));
+                            Row("New users", summary.NewUsers.ToString(culture));
+                        });
+
+                        // REVENUE BY PERIOD
+                        col.Item().PaddingTop(12).Text("Revenue by period").Bold().FontSize(13);
+                        col.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(c =>
+                            {
+                                c.RelativeColumn();   // Period
+                                c.ConstantColumn(130); // Revenue
+                            });
+
+                            t.Header(h =>
+                            {
+                                h.Cell().PaddingVertical(4).Text("Period").SemiBold();
+                                h.Cell().PaddingVertical(4).AlignRight().Text("Revenue").SemiBold();
+                            });
+
+                            foreach (var x in byPeriod)
+                            {
+                                t.Cell().PaddingVertical(2).Text(x.Period.ToString("yyyy-MM-dd", culture));
+                                t.Cell().PaddingVertical(2).AlignRight().Text(x.Revenue.ToString("C", culture));
+                            }
+                        });
+
+                        // REVENUE BY CATEGORY
+                        col.Item().PaddingTop(12).Text("Revenue by category").Bold().FontSize(13);
+                        col.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(c =>
+                            {
+                                c.RelativeColumn();     // Category
+                                c.ConstantColumn(100);  // Share
+                                c.ConstantColumn(130);  // Revenue
+                            });
+
+                            t.Header(h =>
+                            {
+                                h.Cell().PaddingVertical(4).Text("Category").SemiBold();
+                                h.Cell().PaddingVertical(4).AlignRight().Text("Share").SemiBold();
+                                h.Cell().PaddingVertical(4).AlignRight().Text("Revenue").SemiBold();
+                            });
+
+                            foreach (var c in byCat)
+                            {
+                                t.Cell().PaddingVertical(2).Text(c.CategoryName);
+                                t.Cell().PaddingVertical(2).AlignRight().Text((c.Share * 100).ToString("0.0") + " %");
+                                t.Cell().PaddingVertical(2).AlignRight().Text(c.Revenue.ToString("C", culture));
+                            }
+                        });
+
+                        // TOP PRODUCTS
+                        col.Item().PaddingTop(12).Text("Top products").Bold().FontSize(13);
+                        col.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(c =>
+                            {
+                                c.RelativeColumn();      // Product
+                                c.RelativeColumn(0.7f);  // Category
+                                c.ConstantColumn(70);    // Qty
+                                c.ConstantColumn(120);   // Revenue
+                            });
+
+                            t.Header(h =>
+                            {
+                                h.Cell().PaddingVertical(4).Text("Product").SemiBold();
+                                h.Cell().PaddingVertical(4).Text("Category").SemiBold();
+                                h.Cell().PaddingVertical(4).AlignRight().Text("Qty").SemiBold();
+                                h.Cell().PaddingVertical(4).AlignRight().Text("Revenue").SemiBold();
+                            });
+
+                            foreach (var p in top)
+                            {
+                                t.Cell().PaddingVertical(2).Text(p.ProductName);
+                                t.Cell().PaddingVertical(2).Text(p.CategoryName);
+                                t.Cell().PaddingVertical(2).AlignRight().Text(p.SoldQty.ToString(culture));
+                                t.Cell().PaddingVertical(2).AlignRight().Text(p.Revenue.ToString("C", culture));
+                            }
+                        });
+                    });
+
+                    // Footer
+                    page.Footer().AlignCenter().Text(txt =>
+                    {
+                        txt.Span("Page ");
+                        txt.CurrentPageNumber();
+                        txt.Span(" / ");
+                        txt.TotalPages();
+                    });
+                });
+            });
+
+            return doc.GeneratePdf();
+        }
+
     }
 }

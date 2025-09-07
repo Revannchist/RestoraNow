@@ -27,7 +27,14 @@ namespace RestoraNow.Services.Entities
 
         public PaymentStatus Status { get; set; } = PaymentStatus.Pending;
 
-        public DateTime PaidAt { get; set; } = DateTime.UtcNow;
+        public DateTime? PaidAt { get; set; } = DateTime.UtcNow;
+
+        // Gateway linkage
+        public string Currency { get; set; } = null!;
+        public string? Provider { get; set; }            // "PayPal"
+        public string? ProviderOrderId { get; set; }     // PayPal order id
+        public string? ProviderCaptureId { get; set; }   // PayPal capture id
     }
+
 
 }

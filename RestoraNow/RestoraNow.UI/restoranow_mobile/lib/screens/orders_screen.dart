@@ -125,7 +125,7 @@ class _OrderTile extends StatelessWidget {
     final subtitle = StringBuffer();
     subtitle.write('${order.totalQuantity} item(s)');
     final total = order.total;
-    if (total > 0) subtitle.write(' • ${total.toStringAsFixed(2)} KM');
+    if (total > 0) subtitle.write(' • ${total.toStringAsFixed(2)} USD');
     subtitle.write(' • ${_fmt(order.createdAt.toLocal())}');
     if (order.reservationId != null) {
       subtitle.write(' • Res #${order.reservationId}');

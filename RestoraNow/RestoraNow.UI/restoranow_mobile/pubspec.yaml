@@ -16,10 +16,12 @@ dependencies:
   provider: ^6.1.5
   file_picker: ^10.2.0
   flutter_dotenv: ^5.2.1
+  webview_flutter: ^4.7.0
   fl_chart: ^0.69.0
   shared_preferences: ^2.2.3
   image_picker: ^1.0.7
   country_picker: ^2.0.27
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

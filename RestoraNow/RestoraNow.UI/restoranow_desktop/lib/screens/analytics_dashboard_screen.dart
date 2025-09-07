@@ -10,7 +10,8 @@ class AnalyticsDashboardScreen extends StatefulWidget {
   const AnalyticsDashboardScreen({super.key});
 
   @override
-  State<AnalyticsDashboardScreen> createState() => _AnalyticsDashboardScreenState();
+  State<AnalyticsDashboardScreen> createState() =>
+      _AnalyticsDashboardScreenState();
 }
 
 class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
@@ -25,38 +26,82 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
     return MainLayout(
       child: Consumer<AnalyticsProvider>(
         builder: (context, p, _) {
-          if (p.isLoading && p.summary == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (p.error != null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text('Error: ${p.error}', style: const TextStyle(color: Colors.red)),
-              ),
-            );
-          }
+          final s =
+              p.summary ??
+              SummaryResponse(
+                totalRevenue: 0,
+                reservations: 0,
+                avgRating: 0,
+                newUsers: 0,
+              );
 
-          final s = p.summary ?? SummaryResponse(totalRevenue: 0, reservations: 0, avgRating: 0, newUsers: 0);
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          return Stack(
             children: [
-              _FiltersBar(),
-              const SizedBox(height: 12),
-              _KpiRow(summary: s),
-              const SizedBox(height: 12),
-              Expanded(
-                child: Row(
-                  children: const [
-                    Expanded(child: _RevenueOverTimeCard()),
-                    SizedBox(width: 12),
-                    Expanded(child: _RevenueByCategoryCard()),
-                  ],
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Toolbar(),
+                  const SizedBox(height: 12),
+                  _KpiRow(summary: s),
+                  const SizedBox(height: 12),
+
+                  // === MAIN GRID (fills remaining height) ===
+                  Expanded(
+                    child: Column(
+                      children: [
+                        // Top row: left = Top products, right = Revenue by category
+                        Expanded(
+                          flex: 3, // height weight of top row
+                          child: Row(
+                            children: const [
+                              Expanded(
+                                flex: 3,
+                                child: _TopProductsCard(),
+                              ), // wider
+                              SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: _RevenueByCategoryCard(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Bottom row: full-width Revenue over time (stretched)
+                        const Expanded(
+                          flex: 3, // height weight of bottom row
+                          child: _RevenueOverTimeCard(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              const Expanded(child: _TopProductsCard()),
+
+              if (p.isLoading)
+                Container(
+                  color: Colors.black12,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+
+              if (p.error != null && p.error!.isNotEmpty)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
+                  child: Material(
+                    elevation: 2,
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.red.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        'Error: ${p.error!}',
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           );
         },
@@ -65,13 +110,14 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   }
 }
 
-class _FiltersBar extends StatelessWidget {
+class _Toolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AnalyticsProvider>();
 
     return Wrap(
       spacing: 12,
+      runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         OutlinedButton.icon(
@@ -93,7 +139,10 @@ class _FiltersBar extends StatelessWidget {
               ),
             );
             if (picked != null) {
-              context.read<AnalyticsProvider>().setRange(from: picked.start, to: picked.end);
+              context.read<AnalyticsProvider>().setRange(
+                from: picked.start,
+                to: picked.end,
+              );
             }
           },
         ),
@@ -104,7 +153,9 @@ class _FiltersBar extends StatelessWidget {
             DropdownMenuItem(value: 'week', child: Text('Group: Week')),
             DropdownMenuItem(value: 'month', child: Text('Group: Month')),
           ],
-          onChanged: (v) => v == null ? null : context.read<AnalyticsProvider>().setGroupBy(v),
+          onChanged: (v) => v == null
+              ? null
+              : context.read<AnalyticsProvider>().setGroupBy(v),
         ),
         DropdownButton<int>(
           value: p.topTake,
@@ -113,15 +164,34 @@ class _FiltersBar extends StatelessWidget {
             DropdownMenuItem(value: 10, child: Text('Top 10')),
             DropdownMenuItem(value: 15, child: Text('Top 15')),
           ],
-          onChanged: (v) => v == null ? null : context.read<AnalyticsProvider>().setTopTake(v),
+          onChanged: (v) => v == null
+              ? null
+              : context.read<AnalyticsProvider>().setTopTake(v),
         ),
-        if (p.isLoading)
-          const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+        const SizedBox(width: 16),
+        FilledButton.icon(
+          icon: const Icon(Icons.download),
+          label: const Text('Download PDF'),
+          onPressed: () =>
+              context.read<AnalyticsProvider>().downloadPdf(context),
+        ),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.print),
+          label: const Text('Print / Share'),
+          onPressed: () =>
+              context.read<AnalyticsProvider>().shareOrPrintPdf(context),
+        ),
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: () => context.read<AnalyticsProvider>().fetchAll(),
+          icon: const Icon(Icons.refresh),
+        ),
       ],
     );
   }
 
-  static String _d(DateTime dt) => '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  static String _d(DateTime dt) =>
+      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 }
 
 class _KpiRow extends StatelessWidget {
@@ -143,7 +213,10 @@ class _KpiRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title, style: Theme.of(context).textTheme.labelMedium),
-                    Text(value, style: Theme.of(context).textTheme.headlineSmall),
+                    Text(
+                      value,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                   ],
                 ),
               ],
@@ -159,14 +232,18 @@ class _KpiRow extends StatelessWidget {
         const SizedBox(width: 12),
         kpi('Reservations', summary.reservations.toString(), Icons.event_seat),
         const SizedBox(width: 12),
-        kpi('Avg Rating', summary.avgRating.toStringAsFixed(2), Icons.star_rate),
+        kpi(
+          'Avg Rating',
+          summary.avgRating.toStringAsFixed(2),
+          Icons.star_rate,
+        ),
         const SizedBox(width: 12),
         kpi('New Users', summary.newUsers.toString(), Icons.person_add),
       ],
     );
   }
 
-  String _money(double v) => '${v.toStringAsFixed(2)}';
+  String _money(double v) => v.toStringAsFixed(2);
 }
 
 class _RevenueOverTimeCard extends StatelessWidget {
@@ -185,7 +262,10 @@ class _RevenueOverTimeCard extends StatelessWidget {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Revenue over time (${p.groupBy})', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Revenue over time (${p.groupBy})',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
                   Expanded(
                     child: LineChart(
@@ -195,29 +275,42 @@ class _RevenueOverTimeCard extends StatelessWidget {
                             sideTitles: SideTitles(
                               showTitles: true,
                               reservedSize: 36,
-                              getTitlesWidget: (v, _) => Text(v.toInt().toString(), style: const TextStyle(fontSize: 10)),
+                              getTitlesWidget: (v, _) => Text(
+                                v.toInt().toString(),
+                                style: const TextStyle(fontSize: 10),
+                              ),
                             ),
                           ),
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              interval: (data.length / 6).clamp(1, 999).toDouble(),
+                              interval: (data.length / 6)
+                                  .clamp(1, 999)
+                                  .toDouble(),
                               getTitlesWidget: (value, meta) {
                                 final i = value.round();
-                                if (i < 0 || i >= data.length) return const SizedBox.shrink();
+                                if (i < 0 || i >= data.length)
+                                  return const SizedBox.shrink();
                                 final d = data[i].period.toLocal();
                                 final label = p.groupBy == 'month'
                                     ? '${d.year}-${d.month.toString().padLeft(2, '0')}'
                                     : '${d.month}/${d.day}';
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 4.0),
-                                  child: Text(label, style: const TextStyle(fontSize: 10)),
+                                  child: Text(
+                                    label,
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
                                 );
                               },
                             ),
                           ),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                         ),
                         gridData: FlGridData(show: true),
                         borderData: FlBorderData(show: true),
@@ -271,30 +364,45 @@ class _RevenueByCategoryCard extends StatelessWidget {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Revenue by category', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Revenue by category',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
                   Expanded(
                     child: BarChart(
                       BarChartData(
                         titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: true, reservedSize: 36),
+                          leftTitles: const AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 36,
+                            ),
                           ),
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
                               getTitlesWidget: (v, _) {
                                 final i = v.toInt();
-                                if (i < 0 || i >= data.length) return const SizedBox.shrink();
+                                if (i < 0 || i >= data.length)
+                                  return const SizedBox.shrink();
                                 return Transform.rotate(
                                   angle: -0.7,
-                                  child: Text(data[i].categoryName, style: const TextStyle(fontSize: 10)),
+                                  child: Text(
+                                    data[i].categoryName,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
                                 );
                               },
                             ),
                           ),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                         ),
                         barGroups: List.generate(
                           data.length,
@@ -329,29 +437,48 @@ class _TopProductsCard extends StatelessWidget {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Top products', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Top products',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
+
+                  // Fill available space and allow scrolling when rows overflow
                   Expanded(
-                    child: SingleChildScrollView(
-                      child: DataTable(
-                        columns: const [
-                          DataColumn(label: Text('Product')),
-                          DataColumn(label: Text('Category')),
-                          DataColumn(label: Text('Sold')),
-                          DataColumn(label: Text('Revenue')),
-                        ],
-                        rows: data
-                            .map(
-                              (x) => DataRow(
-                                cells: [
-                                  DataCell(Text(x.productName)),
-                                  DataCell(Text(x.categoryName)),
-                                  DataCell(Text(x.soldQty.toString())),
-                                  DataCell(Text(x.revenue.toStringAsFixed(2))),
-                                ],
-                              ),
-                            )
-                            .toList(),
+                    child: Scrollbar(
+                      thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        // vertical
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: SingleChildScrollView(
+                          // horizontal
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 800),
+                            child: DataTable(
+                              columns: const [
+                                DataColumn(label: Text('Product')),
+                                DataColumn(label: Text('Category')),
+                                DataColumn(label: Text('Sold')),
+                                DataColumn(label: Text('Revenue')),
+                              ],
+                              rows: data
+                                  .map(
+                                    (x) => DataRow(
+                                      cells: [
+                                        DataCell(Text(x.productName)),
+                                        DataCell(Text(x.categoryName)),
+                                        DataCell(Text(x.soldQty.toString())),
+                                        DataCell(
+                                          Text(x.revenue.toStringAsFixed(2)),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),

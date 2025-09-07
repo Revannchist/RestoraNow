@@ -104,7 +104,7 @@ class _MenuScreenState extends State<MenuScreen> {
               child: Text(
                 cart.totalQty == 0
                     ? 'Cart is empty'
-                    : 'Cart (${cart.totalQty}) • ${cart.totalPrice.toStringAsFixed(2)} KM',
+                    : 'Cart (${cart.totalQty}) • ${cart.totalPrice.toStringAsFixed(2)} USD',
               ),
             ),
           ),
@@ -341,7 +341,7 @@ class _MenuItemCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '${item.price.toStringAsFixed(2)} KM',
+                      '${item.price.toStringAsFixed(2)} USD',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w700),

@@ -6,12 +6,7 @@ import '../../providers/order_provider.dart';
 import 'payment_screen.dart';
 
 class CheckoutScreen extends StatelessWidget {
-  /// If null, we are NOT attaching to a reservation.
   final int? reservationId;
-
-  /// Human-readable delivery descriptor for non-reservation flows:
-  /// - For Delivery: the user's selected/default address string
-  /// - For Pickup: a label like "Pick up at restaurant"
   final String? deliveryAddress;
 
   const CheckoutScreen({
@@ -23,7 +18,6 @@ class CheckoutScreen extends StatelessWidget {
   bool _looksLikePickup(String? s) {
     if (s == null) return false;
     final t = s.toLowerCase();
-    // Flexible match so you don't rely on one exact string
     return t.contains('pick up') || t.contains('pickup');
   }
 
@@ -46,8 +40,8 @@ class CheckoutScreen extends StatelessWidget {
 
     IconData _modeIcon() {
       if (isReservation) return Icons.event_seat;
-      if (isPickup) return Icons.storefront; // or Icons.takeout_dining
-      return Icons.local_shipping; // delivery
+      if (isPickup) return Icons.storefront;
+      return Icons.local_shipping;
     }
 
     String _modeTitle() {
@@ -68,7 +62,6 @@ class CheckoutScreen extends StatelessWidget {
           ? const _EmptyCheckout()
           : Column(
               children: [
-                // --- Mode banner (delivery / pickup / reservation) ---
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: Row(
@@ -84,8 +77,6 @@ class CheckoutScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // --- Detail card: Delivery vs Pickup ---
                 if (isDelivery)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -98,8 +89,7 @@ class CheckoutScreen extends StatelessWidget {
                       ),
                       child: ListTile(
                         leading: const Icon(Icons.location_on_outlined),
-                        title: const Text(
-                          'Delivery address',
+                        title: const Text('Delivery address',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
@@ -115,7 +105,6 @@ class CheckoutScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-
                 if (isPickup)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -128,18 +117,14 @@ class CheckoutScreen extends StatelessWidget {
                       ),
                       child: const ListTile(
                         leading: Icon(Icons.storefront),
-                        title: Text(
-                          'Pickup',
+                        title: Text('Pickup',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text('Pick up at restaurant'),
                       ),
                     ),
                   ),
-
                 const Divider(height: 1),
-
-                // --- Cart items ---
                 Expanded(
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -166,15 +151,9 @@ class CheckoutScreen extends StatelessWidget {
                     },
                   ),
                 ),
-
                 const Divider(height: 1),
-
-                // --- Totals ---
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
                     children: [
                       Expanded(
@@ -190,21 +169,14 @@ class CheckoutScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // --- Actions ---
                 SafeArea(
                   top: false,
-                  minimum: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                  minimum: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: orderProv.submitting
-                              ? null
-                              : () => Navigator.of(context).maybePop(),
+                          onPressed: orderProv.submitting ? null : () => Navigator.of(context).maybePop(),
                           child: const Text('Back'),
                         ),
                       ),
@@ -214,9 +186,6 @@ class CheckoutScreen extends StatelessWidget {
                           onPressed: (items.isEmpty || orderProv.submitting)
                               ? null
                               : () {
-                                  // If you ever want PaymentScreen to know
-                                  // the delivery/pickup descriptor too,
-                                  // add an optional param there and pass it.
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (_) => PaymentScreen(

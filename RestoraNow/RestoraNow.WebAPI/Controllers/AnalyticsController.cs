@@ -34,5 +34,15 @@ namespace RestoraNow.WebAPI.Controllers
         [HttpGet("top-products")]
         public async Task<ActionResult<IEnumerable<TopProductResponse>>> TopProducts([FromQuery] AnalyticsSearchModel search)
             => Ok(await _analytics.GetTopProductsAsync(search));
+
+        [HttpGet("report.pdf")]
+        [Produces("application/pdf")]
+        public async Task<IActionResult> DownloadReport([FromQuery] AnalyticsSearchModel search)
+        {
+            var pdf = await _analytics.GenerateReportPdfAsync(search);
+            var fileName = $"analytics-{DateTime.UtcNow:yyyyMMdd-HHmm}.pdf";
+            return File(pdf, "application/pdf", fileName);
+        }
+
     }
 }

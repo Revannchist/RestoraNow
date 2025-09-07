@@ -1,7 +1,7 @@
 ﻿using RestoraNow.Model.Enums;
 using System.ComponentModel.DataAnnotations;
 
-namespace RestoraNow.Model.Requests
+namespace RestoraNow.Model.Requests.Payments
 {
     public class PaymentRequest
     {

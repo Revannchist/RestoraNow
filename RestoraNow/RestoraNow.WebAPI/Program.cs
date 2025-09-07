@@ -1,20 +1,22 @@
+﻿using System.Security.Claims;
+using System.Text;
+using System.Text.Json.Serialization;
+using DotNetEnv;
 using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using QuestPDF.Infrastructure;
 using RestoraNow.Services.Data;
 using RestoraNow.Services.Entities;
 using RestoraNow.Services.Implementations;
 using RestoraNow.Services.Interfaces;
-using RestoraNow.Services.Interfaces.Base;
+using RestoraNow.Services.Payments;
 using RestoraNow.Services.Recommendations;
 using RestoraNow.WebAPI.Helpers;
 using RestoraNow.WebAPI.Middleware;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Json.Serialization;
 
 namespace RestoraNow.WebAPI
 {
@@ -24,7 +26,33 @@ namespace RestoraNow.WebAPI
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Services
+            // ---- Logging ----
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+
+            // ---- .env + env vars ----
+            var envPath = Path.Combine(builder.Environment.ContentRootPath, "..", ".env");
+            try { Env.Load(envPath); } catch { /* ignore */ }
+            builder.Configuration.AddEnvironmentVariables();
+
+            // Boot diagnostics
+            Console.WriteLine("---- BOOT DIAG ----");
+            Console.WriteLine($"ENV path: {Path.GetFullPath(envPath)} | exists: {File.Exists(envPath)}");
+            Console.WriteLine("Jwt present: " + !string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Key"]));
+            Console.WriteLine("Conn empty: " + string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("DefaultConnection")));
+            Console.WriteLine("Environment: " + builder.Environment.EnvironmentName);
+
+            // ---- Core services ----
+            builder.Services.AddHttpContextAccessor();
+
+            // PayPal gateway: typed HttpClient (gateway reads .env internally)
+            builder.Services.AddHttpClient<PayPalGateway>(c =>
+            {
+                c.Timeout = TimeSpan.FromSeconds(30);
+                // No BaseAddress here on purpose — the gateway will read PayPal__BaseUrl from .env
+            });
+
+            // App services
             builder.Services.AddTransient<IAddressService, AddressService>();
             builder.Services.AddTransient<IFavoriteService, FavoriteService>();
             builder.Services.AddTransient<IMenuCategoryService, MenuCategoryService>();
@@ -32,7 +60,7 @@ namespace RestoraNow.WebAPI
             builder.Services.AddScoped<IMenuItemImageService, MenuItemImageService>();
             builder.Services.AddTransient<IOrderService, OrderService>();
             builder.Services.AddTransient<IOrderItemService, OrderItemService>();
-            builder.Services.AddScoped<IPaymentService, PaymentService>();
+            builder.Services.AddScoped<IPaymentService, PaymentService>(); // CRUD + PayPal
             builder.Services.AddScoped<IReservationService, ReservationService>();
             builder.Services.AddScoped<IRestaurantService, RestaurantService>();
             builder.Services.AddScoped<IReviewService, ReviewService>();
@@ -42,14 +70,18 @@ namespace RestoraNow.WebAPI
             builder.Services.AddScoped<IUserImageService, UserImageService>();
             builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
             builder.Services.AddScoped<IMenuRecommendationService, MenuRecommendationService>();
+            builder.Services.AddHttpClient<PayPalGateway>();
 
-            builder.Services.AddScoped<DataSeeder>(); //Data Seeder
-            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddScoped<DataSeeder>();
 
             // Mapster
             builder.Services.AddMapster();
             RestoraNow.Services.Mappings.MappingConfig.RegisterMappings();
 
+            // QuestPDF
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            // Controllers + JSON
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -57,6 +89,7 @@ namespace RestoraNow.WebAPI
                     options.JsonSerializerOptions.Converters.Add(new TimeSpanConverter());
                 });
 
+            // Swagger + JWT support
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
@@ -64,7 +97,7 @@ namespace RestoraNow.WebAPI
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     In = ParameterLocation.Header,
-                    Description = "Please enter JWT with Bearer into field",
+                    Description = "Enter: Bearer {your JWT}",
                     Name = "Authorization",
                     Type = SecuritySchemeType.Http,
                     Scheme = "Bearer",
@@ -75,40 +108,40 @@ namespace RestoraNow.WebAPI
                     {
                         new OpenApiSecurityScheme
                         {
-                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
                         },
-                        new string[] {}
+                        Array.Empty<string>()
                     }
                 });
             });
 
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-                Console.WriteLine("CONNECTION STRING: " + connectionString);
-
-            if (connectionString.Contains("restoranow-sql"))
-            {
-                Console.WriteLine("Using Docker connection string");
-            }
-
-
+            // Database
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            // Identity
             builder.Services.AddIdentity<User, IdentityRole<int>>(options =>
             {
                 options.Password.RequireDigit = true;
                 options.Password.RequiredLength = 6;
                 options.Password.RequireNonAlphanumeric = false;
                 options.User.RequireUniqueEmail = true;
-
             })
-                .AddEntityFrameworkStores<ApplicationDbContext>()
-                .AddDefaultTokenProviders();
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
 
+            // JWT
             var jwtKey = builder.Configuration["Jwt:Key"];
-            var jwtIssuer = builder.Configuration["Jwt:Issuer"];
-            var jwtAudience = builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
+            if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetBytes(jwtKey).Length < 32)
+                throw new InvalidOperationException("Jwt__Key is missing or too short in .env (≥ 32 bytes).");
 
+            // Give safe defaults to avoid null warnings / runtime errors
+            var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "RestoraNow";
+            var jwtAudience = builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
 
             builder.Services.AddAuthentication(options =>
             {
@@ -117,7 +150,7 @@ namespace RestoraNow.WebAPI
             })
             .AddJwtBearer(options =>
             {
-                options.RequireHttpsMetadata = true;
+                options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
                 options.SaveToken = true;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
@@ -129,65 +162,69 @@ namespace RestoraNow.WebAPI
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero,
-                    RoleClaimType = ClaimTypes.Role, // Map role claim
-                    NameClaimType = ClaimTypes.NameIdentifier // Map name claim
+                    RoleClaimType = ClaimTypes.Role,
+                    NameClaimType = ClaimTypes.NameIdentifier
                 };
             });
 
+            // (Optional) CORS for local dev / Flutter web
+            // builder.Services.AddCors(p => p.AddPolicy("AllowAll",
+            //     b => b.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
+            // ---- Build app ----
+            Console.WriteLine("---- BUILDING APP ----");
             var app = builder.Build();
+            Console.WriteLine("---- APP BUILT, CONFIGURING PIPELINE ----");
 
-            //Docker is treated as Production, so for the swagger to show up I disabled the IsDevelopment line.
-            //Later when I make the frontend I'll enable it
+            app.UseSwagger();
+            app.UseSwaggerUI();
 
-
-
-            //if (app.Environment.IsDevelopment())
-            //{
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            //}
+            // app.UseCors("AllowAll"); // if enabled above
 
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.UseMiddleware<GlobalExceptionMiddleware>(); //Maybe it can stay here we'll see if it makes problems
-
-            //app.UseHttpsRedirection();
+            app.UseMiddleware<GlobalExceptionMiddleware>();
             app.MapControllers();
 
+            // ---- Migrate + seed ----
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
-                var env = services.GetRequiredService<IHostEnvironment>();
                 var dbContext = services.GetRequiredService<ApplicationDbContext>();
 
-                await dbContext.Database.MigrateAsync();
-
-                var seeder = services.GetRequiredService<DataSeeder>();
-
-                // Idempotent catalog/users
-                await seeder.SeedRolesAsync();
-                await seeder.SeedAdminAsync();
-                await seeder.SeedMenuCategoriesAsync();
-                var restaurantId = await seeder.SeedRestaurantAsync();
-                await seeder.SeedMenuItemsAsync(itemsPerCategory: 6);
-                await seeder.SeedSampleUsersAsync(targetCount: 20);
-                await seeder.SeedTablesAsync(tableCount: 15, restaurantId: restaurantId);
-
-                // --- Seed business data ONCE ---
-                // If ANY of these already exist, skip creating more
-                var hasOrders = await dbContext.Orders.AsNoTracking().AnyAsync();
-                var hasReservations = await dbContext.Reservations.AsNoTracking().AnyAsync();
-                var hasReviews = await dbContext.Reviews.AsNoTracking().AnyAsync();
-
-                if (!hasOrders && !hasReservations && !hasReviews)
+                try
                 {
-                    await seeder.SeedReservationsAsync(days: 30, count: 80);
-                    await seeder.SeedOrdersAndItemsAsync(days: 30, orders: 120);
-                    await seeder.SeedReviewsAsync(days: 30, reviews: 60, restaurantId: restaurantId);
+                    await dbContext.Database.MigrateAsync();
+
+                    var seeder = services.GetRequiredService<DataSeeder>();
+                    await seeder.SeedRolesAsync();
+                    await seeder.SeedAdminAsync();
+                    await seeder.SeedMenuCategoriesAsync();
+                    var restaurantId = await seeder.SeedRestaurantAsync();
+                    await seeder.SeedMenuItemsAsync(itemsPerCategory: 6);
+                    await seeder.SeedSampleUsersAsync(targetCount: 20);
+                    await seeder.SeedTablesAsync(tableCount: 15, restaurantId);
+
+                    var hasOrders = await dbContext.Orders.AsNoTracking().AnyAsync();
+                    var hasReservations = await dbContext.Reservations.AsNoTracking().AnyAsync();
+                    var hasReviews = await dbContext.Reviews.AsNoTracking().AnyAsync();
+
+                    if (!hasOrders && !hasReservations && !hasReviews)
+                    {
+                        await seeder.SeedReservationsAsync(days: 30, count: 80);
+                        await seeder.SeedOrdersAndItemsAsync(days: 30, orders: 120);
+                        await seeder.SeedReviewsAsync(days: 30, reviews: 60, restaurantId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Startup migration/seed failed: " + ex.Message);
+                    Console.WriteLine(ex.StackTrace);
                 }
             }
 
+            Console.WriteLine("---- STARTING WEB HOST ----");
             await app.RunAsync();
         }
     }

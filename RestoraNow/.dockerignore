@@ -1,13 +1,3 @@
-# Environment files
-**/.env
-**/.env.*
-**/secrets.dev.yaml
-**/values.dev.yaml
-
-# Git and version control
-**/.git
-**/.gitignore
-
 # IDE and editor files
 **/.vs
 **/.vscode

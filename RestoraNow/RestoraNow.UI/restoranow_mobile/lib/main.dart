@@ -18,6 +18,7 @@ import 'providers/address_provider.dart';
 import 'providers/restaurant_provider.dart';
 import 'providers/restaurant_review_provider.dart';
 import 'providers/recommendations_provider.dart';
+import 'providers/payment_provider.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -39,7 +40,6 @@ class Env {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
-
   runApp(const MyApp());
 }
 
@@ -63,13 +63,16 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RestaurantReviewProvider()),
         ChangeNotifierProvider(create: (_) => MenuItemReviewProvider()),
         ChangeNotifierProvider(create: (_) => RecommendationsProvider()),
+        ChangeNotifierProvider(
+          create: (_) => PaymentProvider(
+            getJwt: () async => AuthProvider.token, // <-- static getter
+          ),
+        ),
       ],
       child: MaterialApp(
         title: 'RestoraNow Mobile',
         theme: AppTheme.mobileLightTheme,
-
         initialRoute: '/home',
-
         routes: {
           '/login': (_) => const LoginScreen(),
           '/home': (_) => const HomeScreen(),

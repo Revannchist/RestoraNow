@@ -371,7 +371,7 @@ class _CartSheetState extends State<_CartSheet> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      '${item.price.toStringAsFixed(2)} KM • x${ci.qty}',
+                      '${item.price.toStringAsFixed(2)} USD • x${ci.qty}',
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -410,7 +410,7 @@ class _CartSheetState extends State<_CartSheet> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               Text(
-                '${cart.totalPrice.toStringAsFixed(2)} KM',
+                '${cart.totalPrice.toStringAsFixed(2)} USD',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
@@ -662,7 +662,7 @@ class _ItemQuickView extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${item.price.toStringAsFixed(2)} KM',
+                        '${item.price.toStringAsFixed(2)} USD',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),

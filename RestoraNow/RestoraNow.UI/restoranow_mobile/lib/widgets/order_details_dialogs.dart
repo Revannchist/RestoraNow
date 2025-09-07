@@ -113,9 +113,9 @@ class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(it.menuItemName ?? 'Item #${it.menuItemId}'),
-                      subtitle: Text('${price.toStringAsFixed(2)} KM • x$qty'),
+                      subtitle: Text('${price.toStringAsFixed(2)} USD • x$qty'),
                       trailing: Text(
-                        '${line.toStringAsFixed(2)} KM',
+                        '${line.toStringAsFixed(2)} USD',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     );
@@ -133,7 +133,7 @@ class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '${order.total.toStringAsFixed(2)} KM',
+                  '${order.total.toStringAsFixed(2)} USD',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
@@ -366,7 +366,7 @@ class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
 
     final parts = <String>[
       '${o.totalQuantity} item(s)',
-      '${o.total.toStringAsFixed(2)} KM',
+      '${o.total.toStringAsFixed(2)} USD',
       fmt(o.createdAt),
       if (o.userName != null) o.userName!,
     ];
@@ -493,7 +493,7 @@ class _EditItemsSheetState extends State<_EditItemsSheet> {
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(l.name),
-                    subtitle: Text('${l.unitPrice.toStringAsFixed(2)} KM'),
+                    subtitle: Text('${l.unitPrice.toStringAsFixed(2)} USD'),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -533,7 +533,7 @@ class _EditItemsSheetState extends State<_EditItemsSheet> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '${_total.toStringAsFixed(2)} KM',
+                  '${_total.toStringAsFixed(2)} USD',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],

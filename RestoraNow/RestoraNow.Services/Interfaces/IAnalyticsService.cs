@@ -10,5 +10,7 @@ namespace RestoraNow.Services.Interfaces
         Task<IEnumerable<RevenueByPeriodResponse>> GetRevenueByPeriodAsync(AnalyticsSearchModel s);
         Task<IEnumerable<RevenueByCategoryResponse>> GetRevenueByCategoryAsync(AnalyticsSearchModel s);
         Task<IEnumerable<TopProductResponse>> GetTopProductsAsync(AnalyticsSearchModel s);
+
+        Task<byte[]> GenerateReportPdfAsync(AnalyticsSearchModel s);
     }
 }
