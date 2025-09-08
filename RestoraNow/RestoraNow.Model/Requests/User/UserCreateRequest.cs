@@ -7,25 +7,24 @@ namespace RestoraNow.Model.Requests.User
     {
         [Required]
         [MaxLength(50)]
-        public string FirstName { get; set; }
+        public string FirstName { get; set; } = default!;
 
         [Required]
         [MaxLength(50)]
-        public string LastName { get; set; }
+        public string LastName { get; set; } = default!;
 
         [Required]
         [EmailAddress(ErrorMessage = "Please enter a valid email.")]
         [MaxLength(100)]
-        public string Email { get; set; }
+        public string Email { get; set; } = default!;
 
         [Required]
         [MinLength(6)]
-        public string Password { get; set; }
+        public string Password { get; set; } = default!;
 
-        [Required]
         [Phone]
         [MaxLength(30)]
-        public string PhoneNumber { get; set; }
+        public string? PhoneNumber { get; set; } = default!;
 
         public bool IsActive { get; set; } = true;
 

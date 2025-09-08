@@ -48,14 +48,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final userProv = context.read<UserProvider>(); // read before awaits
-      final addrProv = context.read<AddressProvider>(); // read before awaits
+      final userProv = context.read<UserProvider>();
+      final addrProv = context.read<AddressProvider>();
 
       await userProv.fetchMe();
       final me = userProv.currentUser;
-
       if (me != null) {
-        // fetch addresses for summary display
         await addrProv.fetchByUser(me.id);
       }
 
@@ -191,14 +189,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       imageQuality: 70,
                     );
                     if (picked == null) return;
+
+                    final bytes = await picked.readAsBytes();
                     final dataUri = await _dataUriFromXFile(picked);
+
                     Navigator.of(context).pop();
-                    final ok = await prov.upsertMyImageUrl(dataUri);
+
+                    final ok = await prov.upsertMyImageUrl(
+                      dataUri,
+                      previewBytes: bytes, // instant preview
+                    );
+
                     if (!mounted) return;
                     _snack(
                       context,
                       ok ? 'Photo uploaded' : (prov.error ?? 'Upload failed'),
                     );
+
+                    final newUrl = prov.avatarUrl;
+                    if (ok &&
+                        newUrl != null &&
+                        !newUrl.startsWith('data:image/')) {
+                      // warm the cache for the new URL to avoid flicker
+                      precacheImage(NetworkImage(newUrl), context);
+                    }
+                    if (mounted)
+                      setState(() {}); // 🔧 force a rebuild of the screen
                   },
                 ),
                 ListTile(
@@ -216,6 +232,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       context,
                       ok ? 'Photo removed' : (prov.error ?? 'Failed to remove'),
                     );
+                    if (mounted)
+                      setState(() {}); // 🔧 force a rebuild of the screen
                   },
                 ),
               ],
@@ -230,7 +248,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (addrProv.isLoading) return 'Loading addresses…';
     final a = addrProv.defaultAddress;
     if (a == null) return 'Add a delivery address';
-    // Basic one-line summary; tweak as you like
     final parts = <String>[
       a.street,
       if ((a.city ?? '').isNotEmpty) a.city!,
@@ -243,8 +260,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final userProv = context.watch<UserProvider>();
-    final addrProv = context
-        .watch<AddressProvider>(); // watch for summary updates
+    final addrProv = context.watch<AddressProvider>();
     final isLoading = userProv.isLoading && !_initialized;
 
     return Scaffold(
@@ -314,7 +330,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           builder: (_) => const AddressesScreen(),
                         ),
                       );
-                      // refresh summary when returning
                       if (mounted) await _reloadAddresses();
                     },
                   ),
@@ -373,15 +388,24 @@ class _Header extends StatelessWidget {
     final avatarBytes = context.select<UserProvider, Uint8List?>(
       (p) => p.avatarBytes,
     );
+    final version = context.select<UserProvider, int>((p) => p.avatarVersion);
+
+    // Force rebuilds of the avatar subtree when identity changes (URL/bytes/version).
+    final identityKey = ValueKey(
+      '${avatarUrl ?? 'mem'}:${avatarBytes?.length ?? 0}:$version:$isBusy',
+    );
 
     return Row(
       children: [
-        AvatarView(
-          initials: initials,
-          imageUrl: avatarUrl,
-          imageBytes: avatarBytes,
-          isBusy: isBusy,
-          onTap: onTap,
+        KeyedSubtree(
+          key: identityKey,
+          child: AvatarView(
+            initials: initials,
+            imageUrl: avatarUrl,
+            imageBytes: avatarBytes,
+            isBusy: isBusy,
+            onTap: onTap,
+          ),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -406,7 +430,6 @@ class _InitialAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // fix deprecation: use surfaceContainerHighest
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Center(
         child: Text(

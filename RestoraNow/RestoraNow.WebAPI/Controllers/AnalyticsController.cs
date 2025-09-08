@@ -7,7 +7,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 
 namespace RestoraNow.WebAPI.Controllers
 {
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Policy = "StaffOnly")]
     public class AnalyticsController
         : BaseController<SummaryResponse, AnalyticsSearchModel>
     {

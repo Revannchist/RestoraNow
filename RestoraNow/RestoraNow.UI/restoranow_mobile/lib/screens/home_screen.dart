@@ -321,7 +321,7 @@ class _MenuCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '${item.price.toStringAsFixed(2)} KM',
+                          '${item.price.toStringAsFixed(2)} USD',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w700),

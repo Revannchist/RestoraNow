@@ -26,7 +26,7 @@ namespace RestoraNow.Services.Data
 
         public async Task SeedAllAsync(
             int itemsPerCategory = 6,
-            int sampleUsers = 20,
+            int sampleUsers = 10,
             int days = 30,
             int orders = 120,
             int reservations = 80,
@@ -35,7 +35,7 @@ namespace RestoraNow.Services.Data
             int restaurantIdIfKnown = 0)
         {
             await SeedRolesAsync();
-            await SeedAdminAsync();
+            await SeedCoreUsersAsync();
             await SeedMenuCategoriesAsync();
 
             var restaurantId = restaurantIdIfKnown != 0
@@ -46,16 +46,21 @@ namespace RestoraNow.Services.Data
             await SeedSampleUsersAsync(sampleUsers);
             await SeedTablesAsync(tableCount, restaurantId);
 
-            await SeedOrdersAndItemsAsync(days, orders /*, restaurantId*/);
-            await SeedReservationsAsync(days, reservations /*, restaurantId*/);
+            // Optional extra seeders that match the same template
+            await SeedAddressesAsync(minPerUser: 1, maxPerUser: 3);
+            await SeedMenuItemReviewsAsync(reviewsPerUser: 3);
+
+            // Business data order: reservations before orders (so orders can link some reservations)
+            await SeedReservationsAsync(days, reservations);
+            await SeedOrdersAndItemsAsync(days, orders);
             await SeedReviewsAsync(days, reviews, restaurantId);
         }
 
-        // -------------------- Roles + Admin --------------------
+        // -------------------- Roles + Core Users --------------------
 
         public async Task SeedRolesAsync()
         {
-            string[] roles = { "Admin", "Manager", "Staff", "Customer" };
+            string[] roles = { "Admin", "Staff", "Customer" };
 
             foreach (var role in roles)
             {
@@ -69,26 +74,77 @@ namespace RestoraNow.Services.Data
             }
         }
 
-        public async Task SeedAdminAsync()
+        private async Task EnsureRoleAsync(string role)
         {
-            var adminUser = await _userManager.FindByEmailAsync("admin@restoranow.com");
-            if (adminUser != null) return;
-
-            adminUser = new User
+            if (!await _roleManager.RoleExistsAsync(role))
             {
-                FirstName = "Admin",
-                LastName = "User",
-                Email = "admin@restoranow.com",
-                UserName = "admin@restoranow.com",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
+                var r = new IdentityRole<int> { Name = role };
+                var res = await _roleManager.CreateAsync(r);
+                if (!res.Succeeded)
+                    throw new Exception($"Failed to create role {role}: {string.Join(", ", res.Errors.Select(e => e.Description))}");
+            }
+        }
 
-            var result = await _userManager.CreateAsync(adminUser, "Admin123!");
-            if (!result.Succeeded)
-                throw new Exception($"Failed to create admin user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+        private async Task SeedUserWithRolesAsync(
+            string email,
+            string firstName,
+            string lastName,
+            string password,
+            params string[] roles)
+        {
+            foreach (var r in roles) await EnsureRoleAsync(r);
 
-            await _userManager.AddToRoleAsync(adminUser, "Admin");
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                user = new User
+                {
+                    FirstName = firstName,
+                    LastName = lastName,
+                    Email = email,
+                    UserName = email,
+                    IsActive = true,
+                    EmailConfirmed = true, // handy in dev
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                var create = await _userManager.CreateAsync(user, password);
+                if (!create.Succeeded)
+                    throw new Exception($"Failed to create {email}: {string.Join(", ", create.Errors.Select(e => e.Description))}");
+            }
+
+            var current = await _userManager.GetRolesAsync(user);
+            var missing = roles.Except(current, StringComparer.OrdinalIgnoreCase).ToArray();
+            if (missing.Length > 0)
+            {
+                var add = await _userManager.AddToRolesAsync(user, missing);
+                if (!add.Succeeded)
+                    throw new Exception($"Failed to assign roles to {email}: {string.Join(", ", add.Errors.Select(e => e.Description))}");
+            }
+        }
+
+        public async Task SeedCoreUsersAsync()
+        {
+            await SeedUserWithRolesAsync(
+                email: "admin@restoranow.com",
+                firstName: "Admin",
+                lastName: "User",
+                password: "Admin123!",
+                roles: "Admin");
+
+            await SeedUserWithRolesAsync(
+                email: "manager@restoranow.com",
+                firstName: "Manager",
+                lastName: "User",
+                password: "Manager123!",
+                roles: "Staff");
+
+            await SeedUserWithRolesAsync(
+                email: "customer@restoranow.com",
+                firstName: "Customer",
+                lastName: "User",
+                password: "Customer123!",
+                roles: "Customer");
         }
 
         // -------------------- Catalog --------------------
@@ -114,7 +170,6 @@ namespace RestoraNow.Services.Data
 
         public async Task<int> SeedRestaurantAsync()
         {
-            // Adjust fields/properties to match your Restaurant entity
             var existingId = await _context.Restaurants.Select(r => r.Id).FirstOrDefaultAsync();
             if (existingId != 0) return existingId;
 
@@ -149,7 +204,7 @@ namespace RestoraNow.Services.Data
                 var startIdx = count + 1;
                 for (int i = 0; i < needed; i++)
                 {
-                    var price = _rnd.Next(5, 35) + (decimal)_rnd.NextDouble(); // decimal
+                    var price = _rnd.Next(5, 35) + (decimal)_rnd.NextDouble();
                     list.Add(new MenuItem
                     {
                         Name = $"{c.Name} Item {startIdx + i}",
@@ -169,7 +224,7 @@ namespace RestoraNow.Services.Data
 
         // -------------------- Users + Tables --------------------
 
-        public async Task SeedSampleUsersAsync(int targetCount = 20)
+        public async Task SeedSampleUsersAsync(int targetCount = 10)
         {
             var existing = await _context.Users.CountAsync();
             var toAdd = Math.Max(0, targetCount - existing);
@@ -198,12 +253,11 @@ namespace RestoraNow.Services.Data
 
         public async Task SeedTablesAsync(int tableCount = 15, int restaurantId = 1)
         {
-            // Existing table numbers for this restaurant
             var existingNumbers = (await _context.Tables
                 .Where(t => t.RestaurantId == restaurantId)
                 .Select(t => t.TableNumber)
                 .ToListAsync())
-                .ToHashSet(); // in-memory
+                .ToHashSet();
 
             var list = new List<Table>();
 
@@ -230,14 +284,10 @@ namespace RestoraNow.Services.Data
         }
 
         // -------------------- Business Data --------------------
+
         public async Task SeedOrdersAndItemsAsync(int days, int orders)
         {
-            // 1) UserId is REQUIRED on Order
-            var userIds = await _context.Users
-                .AsNoTracking()
-                .Select(u => u.Id)
-                .ToListAsync();
-
+            var userIds = await _context.Users.AsNoTracking().Select(u => u.Id).ToListAsync();
             if (userIds.Count == 0)
             {
                 await SeedSampleUsersAsync(10);
@@ -246,27 +296,25 @@ namespace RestoraNow.Services.Data
                     throw new InvalidOperationException("No users available to assign to Orders.");
             }
 
-            // 2) Make sure we have menu items for OrderItems
-            var menuItems = await _context.MenuItem
-                .AsNoTracking()
+            var menuItems = await _context.MenuItem.AsNoTracking()
                 .Select(mi => new { mi.Id, mi.Price })
                 .ToListAsync();
 
             if (menuItems.Count == 0)
             {
-                await SeedMenuItemsAsync(itemsPerCategory: 6);
-                menuItems = await _context.MenuItem.AsNoTracking().Select(mi => new { mi.Id, mi.Price }).ToListAsync();
+                await SeedMenuItemsAsync(6);
+                menuItems = await _context.MenuItem.AsNoTracking()
+                    .Select(mi => new { mi.Id, mi.Price })
+                    .ToListAsync();
+
                 if (menuItems.Count == 0)
                     throw new InvalidOperationException("No menu items available to add to OrderItems.");
             }
 
-            // 3) Reservations are optional – link some orders to existing reservations if present
-            var reservationIds = await _context.Reservations
-                .AsNoTracking()
+            var reservationIds = await _context.Reservations.AsNoTracking()
                 .Select(r => r.Id)
                 .ToListAsync();
 
-            // 4) Create orders + items
             var ordersList = new List<Order>();
             var itemsList = new List<OrderItem>();
 
@@ -282,7 +330,6 @@ namespace RestoraNow.Services.Data
                     Status = isCompleted ? OrderStatus.Completed : OrderStatus.Preparing
                 };
 
-                // Link a reservation in ~35% of cases (only if any exist)
                 if (reservationIds.Count > 0 && _rnd.NextDouble() < 0.35)
                 {
                     order.ReservationId = reservationIds[_rnd.Next(reservationIds.Count)];
@@ -298,10 +345,10 @@ namespace RestoraNow.Services.Data
 
                     itemsList.Add(new OrderItem
                     {
-                        Order = order,          // attach to the new order
+                        Order = order,
                         MenuItemId = pick.Id,
                         Quantity = qty,
-                        UnitPrice = pick.Price      // decimal -> fine
+                        UnitPrice = pick.Price
                     });
                 }
             }
@@ -309,30 +356,10 @@ namespace RestoraNow.Services.Data
             _context.Orders.AddRange(ordersList);
             _context.OrderItems.AddRange(itemsList);
             await _context.SaveChangesAsync();
-
-            // Uncomment once I make the Payment system
-            /*
-            var payments = new List<Payment>();
-            foreach (var o in ordersList.Where(o => o.Status == OrderStatus.Completed))
-            {
-                var amount = itemsList.Where(oi => oi.Order == o).Sum(oi => oi.UnitPrice * oi.Quantity);
-                payments.Add(new Payment
-                {
-                    Order = o,
-                    Amount = amount,
-                    PaidAt = o.CreatedAt,
-                    Method = PaymentMethod.Cash, // example
-                    Status = PaymentStatus.Settled
-                });
-            }
-            _context.Payments.AddRange(payments);
-            await _context.SaveChangesAsync();
-            */
         }
 
         public async Task SeedReservationsAsync(int days, int count)
         {
-            // ensure users exist
             var userIds = await _context.Users.AsNoTracking().Select(u => u.Id).ToListAsync();
             if (userIds.Count == 0)
             {
@@ -340,21 +367,22 @@ namespace RestoraNow.Services.Data
                 userIds = await _context.Users.AsNoTracking().Select(u => u.Id).ToListAsync();
             }
 
-            // ensure tables exist
-            var tables = await _context.Tables
-                .AsNoTracking()
+            var tables = await _context.Tables.AsNoTracking()
                 .Select(t => new { t.Id, t.Capacity })
                 .ToListAsync();
+
             if (tables.Count == 0)
             {
-                // pick a restaurant id if you have one handy; else default to 1
                 var restaurantId = await _context.Restaurants.AsNoTracking()
                     .Select(r => r.Id)
                     .FirstOrDefaultAsync();
+
                 if (restaurantId == 0) restaurantId = await SeedRestaurantAsync();
 
                 await SeedTablesAsync(tableCount: 15, restaurantId: restaurantId);
-                tables = await _context.Tables.AsNoTracking().Select(t => new { t.Id, t.Capacity }).ToListAsync();
+                tables = await _context.Tables.AsNoTracking()
+                    .Select(t => new { t.Id, t.Capacity })
+                    .ToListAsync();
             }
 
             var list = new List<Reservation>();
@@ -362,7 +390,7 @@ namespace RestoraNow.Services.Data
             {
                 var dt = RandomDateUtc(days).AddMinutes(_rnd.Next(0, 24 * 60));
                 var table = tables[_rnd.Next(tables.Count)];
-                var guestCount = _rnd.Next(1, Math.Max(2, table.Capacity + 1)); // 1..Capacity
+                var guestCount = _rnd.Next(1, Math.Max(2, table.Capacity + 1));
 
                 var status = _rnd.NextDouble() < 0.7
                     ? ReservationStatus.Confirmed
@@ -387,6 +415,8 @@ namespace RestoraNow.Services.Data
             await _context.SaveChangesAsync();
         }
 
+        // -------------------- Restaurant reviews --------------------
+
         public async Task SeedReviewsAsync(int days, int reviews, int restaurantId)
         {
             var userIds = await _context.Users.AsNoTracking().Select(u => u.Id).ToListAsync();
@@ -407,6 +437,122 @@ namespace RestoraNow.Services.Data
             }
 
             _context.Reviews.AddRange(list);
+            await _context.SaveChangesAsync();
+        }
+
+        // -------------------- Addresses (1–3 per user, one default) --------------------
+
+        public async Task SeedAddressesAsync(int minPerUser = 1, int maxPerUser = 3)
+        {
+            if (minPerUser < 1) minPerUser = 1;
+            if (maxPerUser < minPerUser) maxPerUser = minPerUser;
+
+            // users who already have any address
+            var usersWithAddr = await _context.Address.AsNoTracking()
+                .Select(a => a.UserId)
+                .Distinct()
+                .ToListAsync();
+
+            // users with no addresses
+            var usersNoAddr = await _context.Users.AsNoTracking()
+                .Select(u => u.Id)
+                .Where(id => !usersWithAddr.Contains(id))
+                .ToListAsync();
+
+            if (usersNoAddr.Count == 0) return;
+
+            var list = new List<Address>();
+            foreach (var uid in usersNoAddr)
+            {
+                var count = _rnd.Next(minPerUser, maxPerUser + 1);
+                var defaultIndex = _rnd.Next(0, count);
+
+                for (int i = 0; i < count; i++)
+                {
+                    list.Add(new Address
+                    {
+                        UserId = uid,
+                        Street = $"{_rnd.Next(1, 200)} Example St",
+                        City = "Mostar",
+                        ZipCode = $"{_rnd.Next(88000, 88999)}",
+                        Country = "BiH",
+                        IsDefault = (i == defaultIndex)
+                    });
+                }
+            }
+
+            _context.Address.AddRange(list);
+            await _context.SaveChangesAsync();
+        }
+
+        // -------------------- Menu item reviews (per customer) --------------------
+
+        public async Task SeedMenuItemReviewsAsync(int reviewsPerUser = 3)
+        {
+            if (reviewsPerUser <= 0) return;
+
+            // Ensure menu items exist
+            var menuItemIds = await _context.MenuItem.AsNoTracking()
+                .Select(mi => mi.Id)
+                .ToListAsync();
+
+            if (menuItemIds.Count == 0)
+            {
+                await SeedMenuItemsAsync(6);
+                menuItemIds = await _context.MenuItem.AsNoTracking()
+                    .Select(mi => mi.Id)
+                    .ToListAsync();
+
+                if (menuItemIds.Count == 0) return;
+            }
+
+            // Customer user ids (role = Customer)
+            var customerIds = await (from u in _context.Users
+                                     join ur in _context.UserRoles on u.Id equals ur.UserId
+                                     join r in _context.Roles on ur.RoleId equals r.Id
+                                     where r.Name == "Customer"
+                                     select u.Id).ToListAsync();
+
+            if (customerIds.Count == 0) return;
+
+            // existing (UserId, MenuItemId) pairs to respect unique index
+            var existingPairs = await _context.MenuItemReview.AsNoTracking()
+                .Select(x => new { x.UserId, x.MenuItemId })
+                .ToListAsync();
+
+            var existingSet = new HashSet<(int userId, int menuItemId)>(
+                existingPairs.Select(e => (e.UserId, e.MenuItemId)));
+
+            var list = new List<MenuItemReview>();
+
+            foreach (var uid in customerIds)
+            {
+                int addedForUser = 0;
+                var shuffled = menuItemIds.OrderBy(_ => _rnd.Next()).ToList();
+
+                foreach (var mid in shuffled)
+                {
+                    if (existingSet.Contains((uid, mid))) continue;
+
+                    var rating = _rnd.Next(1, 6);
+                    list.Add(new MenuItemReview
+                    {
+                        UserId = uid,
+                        MenuItemId = mid,
+                        Rating = rating,
+                        Comment = rating >= 4 ? "Great!" : rating == 3 ? "Okay" : "Needs improvement",
+                        CreatedAt = DateTime.UtcNow.AddDays(-_rnd.Next(0, 30))
+                    });
+
+                    existingSet.Add((uid, mid));
+                    addedForUser++;
+                    if (addedForUser >= reviewsPerUser) break;
+                }
+            }
+
+            if (list.Count == 0) return;
+
+            _context.MenuItemReview.AddRange(list);
             await _context.SaveChangesAsync();
         }
 

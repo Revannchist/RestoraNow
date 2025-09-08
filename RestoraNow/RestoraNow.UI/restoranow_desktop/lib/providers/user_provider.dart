@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import '../core/user_api_service.dart';
 import '../models/user_model.dart';
 import '../core/api_exception.dart';
+
 class UserProvider with ChangeNotifier {
   final UserApiService _apiService = UserApiService();
+
+  // State
   List<UserModel> _users = [];
   bool _isLoading = false;
   String? _error;
 
+  // Filters & paging (for admin list views)
   String? _nameFilter;
   String? _usernameFilter;
   bool? _isActiveFilter;
@@ -16,23 +20,47 @@ class UserProvider with ChangeNotifier {
   int _currentPage = 1;
   int _pageSize = 10;
 
-  int get currentPage => _currentPage;
-  int get pageSize => _pageSize;
-  int get totalPages => (_totalCount / _pageSize).ceil();
-
+  // Getters
   List<UserModel> get users => _users;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  int get currentPage => _currentPage;
+  int get pageSize => _pageSize;
   int get totalCount => _totalCount;
+  int get totalPages => _pageSize == 0 ? 0 : (_totalCount / _pageSize).ceil();
+
+  /// Clear current list & errors (handy before loading a focused user)
+  void clear() {
+    _users = [];
+    _error = null;
+    notifyListeners();
+  }
+
+  // ----------------------- Admin list API -----------------------
 
   void setPage(int page) {
     _currentPage = page;
     fetchUsers();
   }
 
+  void setPageSize(int newSize) {
+    _pageSize = newSize;
+    _currentPage = 1;
+    fetchUsers();
+  }
+
+  void setFilters({String? name, String? username, bool? isActive}) {
+    _nameFilter = name;
+    _usernameFilter = username;
+    _isActiveFilter = isActive;
+    _currentPage = 1;
+    fetchUsers();
+  }
+
   Future<void> fetchUsers({String? sortBy, bool ascending = true}) async {
     _isLoading = true;
-    _error = null; // clear stale error so UI doesn't show an old toast
+    _error = null;
     notifyListeners();
 
     try {
@@ -53,7 +81,6 @@ class UserProvider with ChangeNotifier {
       _users = result.items;
       _totalCount = result.totalCount;
     } on ApiException catch (e) {
-      // keep raw server message/body; extractServerMessage() can prettify it
       _error = e.message;
     } catch (e) {
       _error = e.toString();
@@ -80,7 +107,7 @@ class UserProvider with ChangeNotifier {
       });
       _users.add(created);
     } on ApiException catch (e) {
-      _error = e.message; // <-- important
+      _error = e.message;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -108,6 +135,9 @@ class UserProvider with ChangeNotifier {
       final index = _users.indexWhere((u) => u.id == user.id);
       if (index != -1) {
         _users[index] = updated;
+      } else {
+        // If list isn’t the “users list”, keep a focused single-item cache.
+        _users = [updated];
       }
     } on ApiException catch (e) {
       _error = e.message;
@@ -128,7 +158,7 @@ class UserProvider with ChangeNotifier {
       await _apiService.delete(id);
       _users.removeWhere((u) => u.id == id);
     } on ApiException catch (e) {
-      _error = e.message; // ✅
+      _error = e.message;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -137,20 +167,36 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  void setPageSize(int newSize) {
-    _pageSize = newSize;
-    _currentPage = 1;
-    fetchUsers();
+  // ----------------------- Focused (Profile) API -----------------------
+
+  /// Fetch a single user (for “Profile”) and keep it locally.
+  Future<UserModel?> fetchUserById(int id) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final user = await _apiService.getById(id);
+      final idx = _users.indexWhere((u) => u.id == id);
+      if (idx >= 0) {
+        _users[idx] = user;
+      } else {
+        _users = [user];
+      }
+      return user;
+    } on ApiException catch (e) {
+      _error = e.message;
+      return null;
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
-  void setFilters({String? name, String? username, bool? isActive}) {
-    _nameFilter = name;
-    _usernameFilter = username;
-    _isActiveFilter = isActive;
-    _currentPage = 1;
-    fetchUsers();
-  }
-
+  // Image-related local helpers (used by profile screen)
   void updateUserImageUrl(int userId, String newImageUrl) {
     final index = _users.indexWhere((u) => u.id == userId);
     if (index != -1) {

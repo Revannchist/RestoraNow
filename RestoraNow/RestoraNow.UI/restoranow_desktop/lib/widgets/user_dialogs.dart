@@ -88,8 +88,9 @@ void showCreateUserDialog(BuildContext context) {
                       onTapOutside: (_) => markTouched('first', setState),
                       validator: (v) {
                         if (!(touched['first'] ?? false)) return null;
-                        if ((v ?? '').trim().isEmpty)
+                        if ((v ?? '').trim().isEmpty) {
                           return 'First name is required.';
+                        }
                         return null;
                       },
                     ),
@@ -108,8 +109,9 @@ void showCreateUserDialog(BuildContext context) {
                       onTapOutside: (_) => markTouched('last', setState),
                       validator: (v) {
                         if (!(touched['last'] ?? false)) return null;
-                        if ((v ?? '').trim().isEmpty)
+                        if ((v ?? '').trim().isEmpty) {
                           return 'Last name is required.';
+                        }
                         return null;
                       },
                     ),
@@ -128,14 +130,16 @@ void showCreateUserDialog(BuildContext context) {
                       onFieldSubmitted: (_) => markTouched('email', setState),
                       onTapOutside: (_) => markTouched('email', setState),
                       validator: (v) {
-                        if (fieldErrors['email'] != null)
+                        if (fieldErrors['email'] != null) {
                           return fieldErrors['email'];
+                        }
                         if (!(touched['email'] ?? false)) return null;
                         final value = (v ?? '').trim();
                         if (value.isEmpty) return 'Email is required.';
                         final emailRe = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                        if (!emailRe.hasMatch(value))
+                        if (!emailRe.hasMatch(value)) {
                           return 'Enter a valid email address.';
+                        }
                         return null;
                       },
                     ),
@@ -169,10 +173,12 @@ void showCreateUserDialog(BuildContext context) {
                         if (!(touched['password'] ?? false)) return null;
                         final value = (v ?? '').trim();
                         if (value.isEmpty) return 'Password is required.';
-                        if (value.length < 6)
+                        if (value.length < 6) {
                           return 'Password must be at least 6 characters.';
-                        if (!RegExp(r'\d').hasMatch(value))
+                        }
+                        if (!RegExp(r'\d').hasMatch(value)) {
                           return 'Password must contain at least one number.';
+                        }
                         return null;
                       },
                     ),
@@ -180,7 +186,7 @@ void showCreateUserDialog(BuildContext context) {
                       PasswordStrengthMeter(password: passwordController.text),
                     const SizedBox(height: 12),
 
-                    // Phone
+                    // Phone (OPTIONAL)
                     TextFormField(
                       controller: phoneNumberController,
                       focusNode: phoneFocus,
@@ -189,7 +195,7 @@ void showCreateUserDialog(BuildContext context) {
                         FilteringTextInputFormatter.allow(RegExp(r'[\d+]')),
                       ],
                       decoration: InputDecoration(
-                        labelText: 'Phone Number',
+                        labelText: 'Phone Number (optional)',
                         isDense: true,
                         errorText: fieldErrors['phone'],
                         errorMaxLines: 2,
@@ -198,14 +204,16 @@ void showCreateUserDialog(BuildContext context) {
                       onFieldSubmitted: (_) => markTouched('phone', setState),
                       onTapOutside: (_) => markTouched('phone', setState),
                       validator: (v) {
-                        if (fieldErrors['phone'] != null)
+                        if (fieldErrors['phone'] != null) {
                           return fieldErrors['phone'];
+                        }
                         if (!(touched['phone'] ?? false)) return null;
                         final value = (v ?? '').trim();
-                        if (value.isEmpty) return 'Phone number is required.';
+                        if (value.isEmpty) return null; // <-- optional now
                         final re = RegExp(r'^(?:\+?\d{7,15}|0\d{6,14})$');
-                        if (!re.hasMatch(value))
+                        if (!re.hasMatch(value)) {
                           return 'Enter a valid phone number.';
+                        }
                         return null;
                       },
                     ),
@@ -249,6 +257,7 @@ void showCreateUserDialog(BuildContext context) {
                         fieldErrors.clear();
                       });
 
+                      final phone = phoneNumberController.text.trim();
                       final user = UserModel(
                         id: 0,
                         firstName: firstNameController.text.trim(),
@@ -258,7 +267,9 @@ void showCreateUserDialog(BuildContext context) {
                         createdAt: DateTime.now(),
                         roles: const [],
                         imageUrl: null,
-                        phoneNumber: phoneNumberController.text.trim(),
+                        phoneNumber: phone.isEmpty
+                            ? null
+                            : phone, // <-- null if empty
                       );
 
                       try {
@@ -387,7 +398,7 @@ void showUpdateUserDialog(
                   TextFormField(
                     controller: phoneNumberController,
                     decoration: const InputDecoration(
-                      labelText: 'Phone Number',
+                      labelText: 'Phone Number (optional)',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -514,11 +525,14 @@ void showUpdateUserDialog(
                   : () async {
                       setState(() => isSubmitting = true);
 
+                      final phone = phoneNumberController.text.trim();
                       final updatedUser = user.copyWith(
                         firstName: firstNameController.text.trim(),
                         lastName: lastNameController.text.trim(),
                         email: emailController.text.trim(),
-                        phoneNumber: phoneNumberController.text.trim(),
+                        phoneNumber: phone.isEmpty
+                            ? null
+                            : phone, // <-- null if empty
                         isActive: isActive,
                         password: passwordController.text.isNotEmpty
                             ? passwordController.text.trim()

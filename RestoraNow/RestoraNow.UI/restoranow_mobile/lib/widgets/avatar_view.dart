@@ -23,22 +23,36 @@ class AvatarView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Identity string that changes when content changes (URL with ?v=..., or bytes)
+    final String _id = _identity(imageUrl, imageBytes, isBusy);
+
     Widget avatar;
     if (imageBytes != null && imageBytes!.isNotEmpty) {
-      avatar = Image.memory(imageBytes!, fit: BoxFit.cover);
+      avatar = Image.memory(
+        imageBytes!,
+        key: ValueKey('mem:$_id'),
+        fit: BoxFit.cover,
+        cacheWidth: (size * 3).floor(),
+        cacheHeight: (size * 3).floor(),
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.low,
+      );
     } else if (imageUrl != null &&
         imageUrl!.isNotEmpty &&
         !imageUrl!.startsWith('data:image/')) {
       avatar = Image.network(
         imageUrl!,
+        key: ValueKey('net:$_id'),
         fit: BoxFit.cover,
+        gaplessPlayback: true,
         errorBuilder: (_, __, ___) => _Initial(initials: initials),
       );
     } else {
-      avatar = _Initial(initials: initials);
+      avatar = _Initial(key: const ValueKey('initial'), initials: initials);
     }
 
     final content = SizedBox(
+      key: ValueKey('slot:$_id:${isBusy ? 1 : 0}'),
       width: size,
       height: size,
       child: Stack(
@@ -81,10 +95,21 @@ class AvatarView extends StatelessWidget {
         ? content
         : GestureDetector(onTap: onTap, child: content);
   }
+
+  static String _identity(String? url, Uint8List? bytes, bool isBusy) {
+    if (bytes != null && bytes.isNotEmpty) {
+      final len = bytes.length;
+      final b0 = bytes[0];
+      final bm = bytes[len >> 1];
+      final bl = bytes[len - 1];
+      return 'mem:$len,$b0,$bm,$bl:${isBusy ? 1 : 0}';
+    }
+    return '${url ?? 'none'}:${isBusy ? 1 : 0}';
+  }
 }
 
 class _Initial extends StatelessWidget {
-  const _Initial({required this.initials});
+  const _Initial({super.key, required this.initials});
   final String initials;
 
   @override

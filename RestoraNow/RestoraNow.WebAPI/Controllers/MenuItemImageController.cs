@@ -1,4 +1,5 @@
-﻿using RestoraNow.Model.Requests;
+﻿using Microsoft.AspNetCore.Authorization;
+using RestoraNow.Model.Requests;
 using RestoraNow.Model.Responses;
 using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.Interfaces;
@@ -6,6 +7,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 
 namespace RestoraNow.WebAPI.Controllers
 {
+    [Authorize(Policy = "StaffOnly")] // only Admin/Manager
     public class MenuItemImageController
         : BaseCRUDController<MenuItemImageResponse, MenuItemImageSearchModel, MenuItemImageRequest, MenuItemImageRequest>
     {

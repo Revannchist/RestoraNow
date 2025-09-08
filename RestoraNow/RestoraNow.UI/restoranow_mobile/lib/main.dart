@@ -21,6 +21,8 @@ import 'providers/recommendations_provider.dart';
 import 'providers/payment_provider.dart';
 
 import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/reservations_screen.dart';
@@ -75,6 +77,7 @@ class MyApp extends StatelessWidget {
         initialRoute: '/home',
         routes: {
           '/login': (_) => const LoginScreen(),
+          '/register': (_) => const RegisterScreen(),
           '/home': (_) => const HomeScreen(),
           '/profile': (_) => const ProfileScreen(),
           '/reservations': (_) => const ReservationsScreen(),

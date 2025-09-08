@@ -12,7 +12,7 @@ import '../../models/user_model.dart';
 import '../../providers/base/auth_provider.dart';
 import '../../providers/user_image_provider.dart';
 import '../../providers/user_provider.dart';
-import '../../theme/theme.dart'; 
+import '../../theme/theme.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -22,17 +22,28 @@ class UserProfileScreen extends StatefulWidget {
 }
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
+  final _scroll = ScrollController();
+
   UserModel? _me;
   bool _busy = false;
+  bool _inited = false;
 
   // Image state
   String? _pendingImageDataUrl;
   bool _imageMarkedForDeletion = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadMe();
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_inited) return;
+    _inited = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMe());
   }
 
   Future<void> _loadMe() async {
@@ -42,22 +53,41 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final users = context.read<UserProvider>();
     final images = context.read<UserImageProvider>();
 
-    // Try by username (from JWT), else default list
-    if (auth.username != null && auth.username!.isNotEmpty) {
-      users.setFilters(username: auth.username);
-      await users.fetchUsers();
-    } else {
-      await users.fetchUsers();
-    }
+    try {
+      UserModel? picked;
 
-    final list = context.read<UserProvider>().users;
-    if (list.isNotEmpty) {
-      final me = list.first;
-      setState(() => _me = me);
-      await images.fetchUserImage(me.id);
-    }
+      // 1) Best path: resolve by JWT user id
+      final uid = auth.userId;
+      if (uid != null) {
+        picked = await users.fetchUserById(uid);
+      }
 
-    setState(() => _busy = false);
+      // 2) Fallback: try to find by email within first page (if API lacks /me)
+      if (picked == null) {
+        await users.fetchUsers(); // first page
+        final list = users.users;
+
+        if (list.isNotEmpty) {
+          final emailLc = (auth.email ?? '').toLowerCase();
+          if (emailLc.isNotEmpty) {
+            picked = list.firstWhere(
+              (u) => u.email.toLowerCase() == emailLc,
+              orElse: () => list.first,
+            );
+          } else {
+            picked = list.first;
+          }
+        }
+      }
+
+      _me = picked;
+
+      if (_me != null) {
+        await images.fetchUserImage(_me!.id);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -75,159 +105,167 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return MainLayout(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: _busy || _me == null
+        child: _busy
             ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                children: [
-                  // ===== Header card =====
-                  Card(
-                    color: Theme.of(context).cardColor,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(color: AppTheme.borderColor),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Avatar + image actions
-                          Column(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: AppTheme.primaryColor.withOpacity(
-                                      0.3,
+            : (_me == null)
+            ? const Center(child: Text('No profile data available.'))
+            : Scrollbar(
+                controller: _scroll,
+                thumbVisibility: true,
+                child: ListView(
+                  controller: _scroll,
+                  children: [
+                    // ===== Header card =====
+                    Card(
+                      color: Theme.of(context).cardColor,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: AppTheme.borderColor),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Avatar + image actions
+                            Column(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppTheme.primaryColor.withOpacity(
+                                        0.3,
+                                      ),
+                                      width: 3,
                                     ),
-                                    width: 3,
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 44,
+                                    backgroundColor: AppTheme.primaryColor
+                                        .withOpacity(0.15),
+                                    backgroundImage: dataUrlToShow != null
+                                        ? MemoryImage(
+                                            _decodeBase64Image(dataUrlToShow),
+                                          )
+                                        : null,
+                                    child: dataUrlToShow == null
+                                        ? Text(
+                                            _initials(
+                                              _me!.firstName,
+                                              _me!.lastName,
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : null,
                                   ),
                                 ),
-                                child: CircleAvatar(
-                                  radius: 44,
-                                  backgroundColor: AppTheme.primaryColor
-                                      .withOpacity(0.15),
-                                  backgroundImage: dataUrlToShow != null
-                                      ? MemoryImage(
-                                          _decodeBase64Image(dataUrlToShow),
-                                        )
-                                      : null,
-                                  child: dataUrlToShow == null
-                                      ? Text(
-                                          _initials(
-                                            _me!.firstName,
-                                            _me!.lastName,
-                                          ),
-                                          style: const TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.edit),
-                                label: const Text('Edit photo'),
-                                onPressed: _openImageDialog,
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(width: 16),
-
-                          // Name/email/roles + status chip
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '${_me!.firstName} ${_me!.lastName}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              color: AppTheme.primaryColor,
-                                            ),
-                                      ),
-                                    ),
-                                    //AppTheme.statusChip(isActive: _me!.isActive),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  auth.email ?? _me!.email,
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: -6,
-                                  children: roles.isEmpty
-                                      ? [AppTheme.roleChip('No role')]
-                                      : roles
-                                            .map((r) => AppTheme.roleChip(r))
-                                            .toList(),
+                                const SizedBox(height: 10),
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.edit),
+                                  label: const Text('Edit photo'),
+                                  onPressed: _openImageDialog,
                                 ),
                               ],
                             ),
-                          ),
 
-                          const SizedBox(width: 8),
+                            const SizedBox(width: 16),
 
-                          // Actions
-                          Column(
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: _openEditDialog,
-                                icon: const Icon(Icons.edit),
-                                label: const Text('Edit Profile'),
+                            // Name/email/roles
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${_me!.firstName} ${_me!.lastName}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge
+                                              ?.copyWith(
+                                                color: AppTheme.primaryColor,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    auth.email ?? _me!.email,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: -6,
+                                    children: roles.isEmpty
+                                        ? [AppTheme.roleChip('No role')]
+                                        : roles
+                                              .map((r) => AppTheme.roleChip(r))
+                                              .toList(),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 8),
-                              OutlinedButton.icon(
-                                onPressed: () {
-                                  context.read<AuthProvider>().logout();
-                                  Navigator.pushNamedAndRemoveUntil(
-                                    context,
-                                    '/login',
-                                    (_) => false,
-                                  );
-                                },
-                                icon: const Icon(Icons.logout),
-                                label: const Text('Logout'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppTheme.primaryColor,
-                                  side: const BorderSide(
-                                    color: AppTheme.primaryColor,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            // Actions
+                            Column(
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: _openEditDialog,
+                                  icon: const Icon(Icons.edit),
+                                  label: const Text('Edit Profile'),
+                                ),
+                                const SizedBox(height: 8),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    context.read<AuthProvider>().logout();
+                                    Navigator.pushNamedAndRemoveUntil(
+                                      context,
+                                      '/login',
+                                      (_) => false,
+                                    );
+                                  },
+                                  icon: const Icon(Icons.logout),
+                                  label: const Text('Logout'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppTheme.primaryColor,
+                                    side: const BorderSide(
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // ===== Details card =====
-                  _InfoCard(me: _me!, username: auth.username ?? _me!.email),
-                ],
+                    // ===== Details card =====
+                    _InfoCard(me: _me!, username: auth.username ?? _me!.email),
+                  ],
+                ),
               ),
       ),
     );
@@ -309,7 +347,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
 
     await provider.updateUser(updated);
-    setState(() => _me = updated);
+    if (mounted) setState(() => _me = updated);
   }
 
   Future<void> _openImageDialog() async {
@@ -327,7 +365,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
+        builder: (context, setLocal) {
           Future<void> pickImage() async {
             final result = await FilePicker.platform.pickFiles(
               type: FileType.image,
@@ -335,10 +373,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             if (result != null && result.files.single.path != null) {
               final file = File(result.files.single.path!);
               final bytes = await file.readAsBytes();
-              final base64 = base64Encode(bytes);
+              final base64Str = base64Encode(bytes);
               final mimeType = _getMimeType(file.path);
-              setState(() {
-                localDataUrl = 'data:$mimeType;base64,$base64';
+              setLocal(() {
+                localDataUrl = 'data:$mimeType;base64,$base64Str';
                 deleteFlag = false;
                 changed = true;
               });
@@ -380,7 +418,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         icon: const Icon(Icons.delete, color: Colors.red),
                         label: const Text('Remove'),
                         onPressed: (localDataUrl != null || existing != null)
-                            ? () => setState(() {
+                            ? () => setLocal(() {
                                 deleteFlag = true;
                                 localDataUrl = null;
                                 changed = true;
@@ -404,7 +442,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 onPressed: (!changed || saving)
                     ? null
                     : () async {
-                        setState(() => saving = true);
+                        setLocal(() => saving = true);
                         try {
                           if (deleteFlag && existing != null) {
                             await images.deleteUserImage(existing.id, _me!.id);
@@ -422,7 +460,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           }
                           if (context.mounted) Navigator.pop(context, true);
                         } finally {
-                          setState(() => saving = false);
+                          setLocal(() => saving = false);
                         }
                       },
                 child: saving
@@ -440,7 +478,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
 
     if (saved == true) {
-      // Refresh the avatar from provider so the header updates immediately.
       await context.read<UserImageProvider>().fetchUserImage(_me!.id);
       if (mounted) setState(() {});
     }
@@ -508,7 +545,7 @@ class _InfoCard extends StatelessWidget {
             label,
             style: const TextStyle(
               fontWeight: FontWeight.w600,
-              color: AppTheme.primaryColor, // themed label color
+              color: AppTheme.primaryColor,
             ),
           ),
         ),

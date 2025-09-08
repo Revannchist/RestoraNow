@@ -7,7 +7,7 @@ using RestoraNow.WebAPI.Controllers.Base;
 
 namespace RestoraNow.WebAPI.Controllers
 {
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize]
     public class UserImageController : BaseCRUDController<UserImageResponse, UserImageSearchModel, UserImageRequest, UserImageRequest>
     {
         public UserImageController(IUserImageService service) : base(service)

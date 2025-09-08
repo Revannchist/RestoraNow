@@ -1,4 +1,5 @@
 ﻿using MapsterMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RestoraNow.Model.Base;
@@ -94,45 +95,46 @@ namespace RestoraNow.Services.Implementations
 
         public override async Task<UserResponse> InsertAsync(UserCreateRequest request)
         {
-            // Validate: Email already in use
+            // Normalize: empty/whitespace -> null
+            var phone = string.IsNullOrWhiteSpace(request.PhoneNumber)
+                ? null
+                : request.PhoneNumber.Trim();
+
+            // Email duplicate check
             var existingByEmail = await _userManager.FindByEmailAsync(request.Email);
             if (existingByEmail != null)
                 throw new ValidationException("A user with the given email already exists.");
 
-            // Validate: Phone number already in use
-            var existingByPhone = await _context.Users
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber);
-            if (existingByPhone != null)
-                throw new ValidationException("A user with the given phone number already exists.");
+            // Phone duplicate check ONLY if provided
+            if (phone != null)
+            {
+                var phoneExists = await _context.Users
+                    .AsNoTracking()
+                    .AnyAsync(u => u.PhoneNumber == phone);
 
-            //if (!Regex.IsMatch(request.PhoneNumber, @"^\+?[0-9]{7,15}$"))
-            //    throw new ValidationException("Phone number must be between 7 and 15 digits.");
+                if (phoneExists)
+                    throw new ValidationException("A user with the given phone number already exists.");
+            }
 
-            // Validate: Roles exist
+            // Validate roles exist (unchanged)
             if (request.Roles != null && request.Roles.Any())
             {
                 var roleErrors = new List<string>();
                 foreach (var role in request.Roles)
-                {
                     if (!await _context.Roles.AnyAsync(r => r.Name == role))
-                    {
                         roleErrors.Add($"Role '{role}' does not exist.");
-                    }
-                }
 
                 if (roleErrors.Any())
                     throw new ValidationException($"Invalid roles: {string.Join(", ", roleErrors)}");
             }
 
-            // Create user
             var user = new User
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
-                UserName = request.Email, // Required by Identity
-                PhoneNumber = request.PhoneNumber,
+                UserName = request.Email, // keep in sync
+                PhoneNumber = phone,      // <= store null if empty
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
@@ -140,20 +142,14 @@ namespace RestoraNow.Services.Implementations
             var result = await _userManager.CreateAsync(user, request.Password);
             if (!result.Succeeded)
             {
-                _context.ChangeTracker.Clear(); // 💥 Clear EF tracking on failure
+                _context.ChangeTracker.Clear();
                 throw new ValidationException($"User creation failed: {string.Join(", ", result.Errors.Select(e => e.Description))}");
             }
 
-            // Assign roles
-            IdentityResult roleResult;
-            if (request.Roles != null && request.Roles.Any())
-            {
-                roleResult = await _userManager.AddToRolesAsync(user, request.Roles);
-            }
-            else
-            {
-                roleResult = await _userManager.AddToRoleAsync(user, "Customer");
-            }
+            // Assign roles (unchanged)
+            IdentityResult roleResult = (request.Roles != null && request.Roles.Any())
+                ? await _userManager.AddToRolesAsync(user, request.Roles)
+                : await _userManager.AddToRoleAsync(user, "Customer");
 
             if (!roleResult.Succeeded)
             {
@@ -161,11 +157,9 @@ namespace RestoraNow.Services.Implementations
                 throw new ValidationException($"Failed to assign roles: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
             }
 
-            // Map and return response
             var userResponse = _mapper.Map<UserResponse>(user);
             var roles = await _userManager.GetRolesAsync(user);
             userResponse.Roles = roles.ToList();
-
             return userResponse;
         }
 
@@ -175,71 +169,76 @@ namespace RestoraNow.Services.Implementations
             if (user == null)
                 return null;
 
-            // Only update fields that are provided (not null)
-            if (request.FirstName != null)
-                user.FirstName = request.FirstName;
-
-            if (request.LastName != null)
-                user.LastName = request.LastName;
-
-            if (request.Email != null && request.Email != user.Email)
+            // Email change: check duplicates first
+            if (request.Email != null && !string.Equals(request.Email, user.Email, StringComparison.OrdinalIgnoreCase))
             {
+                var existingByEmail = await _userManager.FindByEmailAsync(request.Email);
+                if (existingByEmail != null && existingByEmail.Id != user.Id)
+                    throw new ValidationException("A user with the given email already exists.");
+
                 user.Email = request.Email;
-                user.UserName = request.Email; // Keep UserName in sync with Email
+                user.UserName = request.Email; // keep in sync
             }
 
-            if (request.PhoneNumber != null)
-                user.PhoneNumber = request.PhoneNumber;
+            // Phone change: normalize & check only if provided
+            if (request.PhoneNumber != null) // caller intends to modify phone (can be set to empty to clear)
+            {
+                var phone = string.IsNullOrWhiteSpace(request.PhoneNumber)
+                    ? null
+                    : request.PhoneNumber.Trim();
 
-            if (request.IsActive.HasValue)
-                user.IsActive = request.IsActive.Value;
+                if (phone != null && !string.Equals(phone, user.PhoneNumber, StringComparison.Ordinal))
+                {
+                    var phoneExists = await _context.Users
+                        .AsNoTracking()
+                        .AnyAsync(u => u.PhoneNumber == phone && u.Id != user.Id);
 
-            // Handle password update if provided
+                    if (phoneExists)
+                        throw new ValidationException("A user with the given phone number already exists.");
+                }
+
+                user.PhoneNumber = phone; // set (or clear) after checks
+            }
+
+            if (request.FirstName != null) user.FirstName = request.FirstName;
+            if (request.LastName != null) user.LastName = request.LastName;
+            if (request.IsActive.HasValue) user.IsActive = request.IsActive.Value;
+
+            // Password update if provided
             if (!string.IsNullOrEmpty(request.Password))
             {
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                var passwordResult = await _userManager.ResetPasswordAsync(user, token, request.Password);
-                if (!passwordResult.Succeeded)
-                {
-                    throw new Exception($"Password update failed: {string.Join(", ", passwordResult.Errors.Select(e => e.Description))}");
-                }
+                var pwdResult = await _userManager.ResetPasswordAsync(user, token, request.Password);
+                if (!pwdResult.Succeeded)
+                    throw new ValidationException($"Password update failed: {string.Join(", ", pwdResult.Errors.Select(e => e.Description))}");
             }
 
-            // Handle roles update if provided
+            // Roles update if provided (unchanged)
             if (request.Roles != null)
             {
                 var currentRoles = await _userManager.GetRolesAsync(user);
                 var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
                 if (!removeResult.Succeeded)
-                {
-                    throw new Exception($"Failed to remove existing roles: {string.Join(", ", removeResult.Errors.Select(e => e.Description))}");
-                }
+                    throw new ValidationException($"Failed to remove existing roles: {string.Join(", ", removeResult.Errors.Select(e => e.Description))}");
 
                 if (request.Roles.Any())
                 {
                     var addResult = await _userManager.AddToRolesAsync(user, request.Roles);
                     if (!addResult.Succeeded)
-                    {
-                        throw new Exception($"Failed to assign new roles: {string.Join(", ", addResult.Errors.Select(e => e.Description))}");
-                    }
+                        throw new ValidationException($"Failed to assign new roles: {string.Join(", ", addResult.Errors.Select(e => e.Description))}");
                 }
             }
 
             var updateResult = await _userManager.UpdateAsync(user);
             if (!updateResult.Succeeded)
-            {
-                throw new Exception($"User update failed: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}");
-            }
+                throw new ValidationException($"User update failed: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}");
 
-            await _context.Entry(user)
-                .Reference(u => u.Image)
-                .LoadAsync();
+            await _context.Entry(user).Reference(u => u.Image).LoadAsync();
 
-            var userResponse = _mapper.Map<UserResponse>(user);
-            var roles = await _userManager.GetRolesAsync(user);
-            userResponse.Roles = roles.ToList();
-
-            return userResponse;
+            var resp = _mapper.Map<UserResponse>(user);
+            var rolesFinal = await _userManager.GetRolesAsync(user);
+            resp.Roles = rolesFinal.ToList();
+            return resp;
         }
 
         public override async Task<UserResponse?> GetByIdAsync(int id)

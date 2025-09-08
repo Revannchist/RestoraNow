@@ -29,6 +29,34 @@ class AuthProvider with ChangeNotifier {
   String? _error;
   String? get error => _error;
 
+  // ---- Helpers ----
+
+  Uri _uri(String path) {
+    final base = dotenv.env['API_URL'] ?? '';
+    final needsSlash = base.isNotEmpty && !base.endsWith('/');
+    return Uri.parse('$base${needsSlash ? '/' : ''}$path');
+  }
+
+  Map<String, dynamic>? _tryJson(String s) {
+    try {
+      final d = jsonDecode(s);
+      return d is Map<String, dynamic> ? d : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _extractError(Map<String, dynamic>? body, String fallback) {
+    if (body == null) return fallback;
+    if (body['message'] is String) return body['message'] as String;
+    if (body['Message'] is String) return body['Message'] as String;
+    final errors = body['errors'] ?? body['Errors'];
+    if (errors is Iterable) {
+      return errors.map((e) => e.toString()).join('\n');
+    }
+    return fallback;
+  }
+
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -47,8 +75,10 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // ---- API ----
+
   Future<bool> login(String email, String password) async {
-    final uri = Uri.parse("${dotenv.env['API_URL']}Auth/login");
+    final uri = _uri('Auth/login');
     try {
       final response = await http.post(
         uri,
@@ -71,7 +101,50 @@ class AuthProvider with ChangeNotifier {
         return true;
       } else {
         final body = _tryJson(response.body);
-        _error = body?["message"]?.toString() ?? "Login failed";
+        _error = _extractError(body, "Login failed");
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Register a user. Returns true on 200 OK.
+  /// Backend response (on success): { "message": "Successfully registered." }
+  Future<bool> register({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    String? phoneNumber,
+  }) async {
+    final uri = _uri('Auth/register');
+    try {
+      final payload = {
+        "firstName": firstName,
+        "lastName": lastName,
+        "email": email,
+        "password": password,
+        if (phoneNumber != null && phoneNumber.trim().isNotEmpty)
+          "phoneNumber": phoneNumber.trim(),
+      };
+
+      final res = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(payload),
+      );
+
+      if (res.statusCode == 200) {
+        _error = null;
+        notifyListeners();
+        return true;
+      } else {
+        final body = _tryJson(res.body);
+        _error = _extractError(body, "Registration failed");
         notifyListeners();
         return false;
       }
@@ -122,8 +195,6 @@ class AuthProvider with ChangeNotifier {
   int? get userId {
     final p = _payload;
     if (p == null) return null;
-
-    // Common claim keys in order; stop at the first parsable int.
     for (final key in const [
       'nameid',
       'sub',
@@ -139,14 +210,5 @@ class AuthProvider with ChangeNotifier {
       if (n != null) return n;
     }
     return null;
-  }
-
-  Map<String, dynamic>? _tryJson(String s) {
-    try {
-      final d = jsonDecode(s);
-      return d is Map<String, dynamic> ? d : null;
-    } catch (_) {
-      return null;
-    }
   }
 }

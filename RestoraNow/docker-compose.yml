@@ -1,32 +1,111 @@
 services:
+  # ========================
+  # SQL Server
+  # ========================
   restoranow-sql:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: restoranow-sql
     restart: unless-stopped
     environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=${SA_PASSWORD}
-      - MSSQL_PID=Developer
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "${SA_PASSWORD}"
+      MSSQL_PID: "Developer"
     ports:
-      - "1402:1433"
+      - "1402:1433"                # host:container
+    volumes:
+      - sql-data:/var/opt/mssql    # persist DB between runs
+    healthcheck:
+      # sqlcmd is in the image at this path (tools18 uses -C for trust)
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
     networks:
       - restoranow-2025
- 
+
+  # ========================
+  # RabbitMQ + Management UI
+  # ========================
+  restoranow-rabbit:
+    image: rabbitmq:3.13-management
+    container_name: restoranow-rabbit
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: "${Rabbit__User}"
+      RABBITMQ_DEFAULT_PASS: "${Rabbit__Pass}"
+      RABBITMQ_DEFAULT_VHOST: "${Rabbit__VirtualHost}"
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - restoranow-2025
+
+  # ========================
+  # ASP.NET Core Web API
+  # ========================
   restoranow-api:
     build:
       context: .
+      dockerfile: RestoraNow.WebAPI/Dockerfile
+    container_name: restoranow-api
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=restoranow-sql;Database=IB200011;User=sa;Password=${SA_PASSWORD};ConnectRetryCount=0;TrustServerCertificate=True
-      - Jwt__Key=${JWT_KEY}
-      - Jwt__Issuer=RestoraNow
-      - Jwt__Audience=RestoraNow
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "http://+:5205"
+      # Use container name, not localhost, for SQL:
+      ConnectionStrings__DefaultConnection: "Server=restoranow-sql;Database=IB200011;User=sa;Password=${SA_PASSWORD};ConnectRetryCount=0;TrustServerCertificate=True"
+      Jwt__Key: "${Jwt__Key}"
+      Jwt__Issuer: "RestoraNow"
+      Jwt__Audience: "RestoraNow"
+      # Override Rabbit host for container communication
+      Rabbit__Host: "restoranow-rabbit"
+      Rabbit__Port: "${Rabbit__Port}"
+      Rabbit__Product: "${Rabbit__Product}"
+      Rabbit__Name: "${Rabbit__Name}"
     ports:
       - "5205:5205"
+    depends_on:
+      restoranow-sql:
+        condition: service_healthy
+      restoranow-rabbit:
+        condition: service_healthy
     networks:
       - restoranow-2025
-    depends_on:
-      - restoranow-sql
 
+  # ========================
+  # RabbitMQ Email Subscriber
+  # ========================
+  restoranow-subscriber:
+    build:
+      context: .
+      dockerfile: RestoraNow.Subscriber/Dockerfile   # singular folder name
+    container_name: restoranow-subscriber
+    restart: unless-stopped
+    env_file:
+      - .env
+      - RestoraNow.Subscriber/.env   # includes SMTP config
+    environment:
+      # Override Rabbit host for container comms
+      Rabbit__Host: "restoranow-rabbit"
+    depends_on:
+      restoranow-rabbit:
+        condition: service_healthy
+    networks:
+      - restoranow-2025
+
+# ========================
+# Shared Network & Volume
+# ========================
 networks:
   restoranow-2025:
     driver: bridge
+
+volumes:
+  sql-data:

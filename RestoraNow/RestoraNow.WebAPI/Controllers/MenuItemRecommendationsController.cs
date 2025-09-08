@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RestoraNow.Model.Responses;
 using RestoraNow.Services.Recommendations;
@@ -10,6 +11,7 @@ namespace RestoraNow.WebAPI.Controllers
 {
     [ApiController]
     [Route("api/MenuItem")]
+    [Authorize]
     public class MenuItemRecommendationsController : ControllerBase
     {
         // GET: /api/MenuItem/recommendations?take=10

@@ -5,9 +5,11 @@ using RestoraNow.Model.SearchModels;
 using RestoraNow.Services.Interfaces;
 using RestoraNow.WebAPI.Controllers.Base;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authorization;
 
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class PaymentController
         : BaseCRUDController<PaymentResponse, PaymentSearchModel, PaymentRequest, PaymentRequest>
     {
