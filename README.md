@@ -16,7 +16,7 @@
 - Email: `customer@restoranow.com`  
 - Password: `Customer123!`
 
-> ⚠ Note: These accounts are for testing purposes only.
+> These accounts are for testing purposes only.
 
 ---
 
@@ -30,4 +30,4 @@
 - Client ID: `YOUR_SANDBOX_CLIENT_ID`  
 - Client Secret: `YOUR_SANDBOX_CLIENT_SECRET`
 
-> ⚠ Note: Replace these with your own sandbox credentials for security. Do **not** use live credentials in development.
+> Replace these with your own sandbox credentials for security. Since mine might be out of date or expired. 
