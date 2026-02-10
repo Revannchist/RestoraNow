@@ -1,50 +1,33 @@
 # RestoraNow
 
-RS2 repository
+**RestoraNow** is a restaurant reservation system with:  
+- **Desktop app**: For owners/administrators to manage tables, reservations, and orders.  
+- **Mobile app**: For customers to make reservations and place orders.
 
+---
 
+## Test Accounts (Sandbox)
 
---------------------------------------------------------------
+**Admin User**  
+- Email: `admin@restoranow.com`  
+- Password: `Admin123!`
 
+**Customer User**  
+- Email: `customer@restoranow.com`  
+- Password: `Customer123!`
 
+> ⚠ Note: These accounts are for testing purposes only.
 
-PayPal Buyer login info:
+---
 
+## PayPal Sandbox Integration
 
+**Buyer (Sandbox)**  
+- Email: `sb-gysp4345895742@personal.example.com`  
+- Password: `zmfLI1=S`
 
-Email = sb-gysp4345895742@personal.example.com
+**PayPal API Credentials (Sandbox)**  
+- Client ID: `YOUR_SANDBOX_CLIENT_ID`  
+- Client Secret: `YOUR_SANDBOX_CLIENT_SECRET`
 
-Password = zmfLI1=S
-
-
-
-Seller info:
-
-
-
-PayPal\_\_ClientId = AY\_hixs-hZqAhVWgysJjV03LbsqONN1Y0JjfvP-xjewR4WbSsV1oWS\_BI3rwfv2\_\_bNAy13LlxYVPFnt
-
-PayPal\_\_ClientSecret = EKhiCVfQydM0ua370VUQN-RTV4TtMrjh0Cw7SM\_ZwvSGv0npDjLQZV6jWFaqjymMOR\_SONcBweqrRtcL
-
-
-
-Admin User login info:
-
-
-
-email: "admin@restoranow.com",
-
-password: "Admin123!",
-
-
-
-
-
-Customer User login info:
-
-
-
-email: "customer@restoranow.com"
-
-password: "Customer123!"
-
+> ⚠ Note: Replace these with your own sandbox credentials for security. Do **not** use live credentials in development.
